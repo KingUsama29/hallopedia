@@ -32,6 +32,29 @@ body {
   color: #fff;
 }
 
+.hero-navbar {
+  position: relative;
+}
+
+.hero-navbar::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 1px;
+  background: #292929;
+  content: '';
+  transform: scaleX(0);
+  transform-origin: left center;
+  animation: navbarRuleReveal 4.05s cubic-bezier(0.2, 0.8, 0.2, 1) 0.15s both;
+}
+
+@keyframes navbarRuleReveal {
+  to {
+    transform: scaleX(1);
+  }
+}
+
 .hero-label {
   position: relative;
   z-index: 2;
@@ -130,7 +153,6 @@ body {
 }
 
 @keyframes photoFloat {
-
   0%,
   100% {
     translate: 0 0;
@@ -143,85 +165,62 @@ body {
   }
 }
 
-
 /* =========================================
-   HERO ABSTRACT
+   HERO EDITORIAL CORNER MARKS
 ========================================= */
 
-.abstract-shape {
+.hero-editorial-corners {
   position: absolute;
-  border-radius: 50%;
-  mix-blend-mode: screen;
+  z-index: 1;
+  top: 23%;
+  right: 18%;
+  bottom: 20%;
+  left: 18%;
+  pointer-events: none;
 }
 
-.shape-one {
-  top: 80px;
-  left: 70px;
-  width: 320px;
-  height: 100px;
-  background: linear-gradient(90deg,
-      transparent,
-      #9e202b,
-      #4b151a,
-      transparent);
-  transform: rotate(-25deg);
-  animation: abstractMove 12s ease-in-out infinite alternate;
+.editorial-corner {
+  position: absolute;
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(237, 53, 65, 0.36);
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  opacity: 0.22;
+  animation: editorialCornerCycle 7.2s ease-in-out infinite;
 }
 
-.shape-two {
-  top: 170px;
-  left: 130px;
-  width: 260px;
-  height: 75px;
-  background: linear-gradient(90deg,
-      transparent,
-      #777,
-      #292929,
-      transparent);
-  transform: rotate(25deg);
-  animation: abstractMoveTwo 15s ease-in-out infinite alternate;
+.editorial-corner-top-left {
+  top: 0;
+  left: 0;
 }
 
-.shape-three {
-  top: 120px;
-  left: 160px;
-  width: 180px;
-  height: 55px;
-  background: #9e202b;
-  filter: blur(25px);
-  animation: abstractPulse 9s ease-in-out infinite alternate;
+.editorial-corner-top-right {
+  top: 0;
+  right: 0;
+  transform: rotate(90deg);
+  animation-delay: 1.8s;
 }
 
-@keyframes abstractMove {
-  from {
-    transform: translate(-12px, -8px) rotate(-25deg);
-  }
-
-  to {
-    transform: translate(18px, 12px) rotate(-12deg);
-  }
+.editorial-corner-bottom-right {
+  right: 0;
+  bottom: 0;
+  transform: rotate(180deg);
+  animation-delay: 3.6s;
 }
 
-@keyframes abstractMoveTwo {
-  from {
-    transform: translate(12px, 10px) rotate(25deg);
-  }
-
-  to {
-    transform: translate(-15px, -12px) rotate(12deg);
-  }
+.editorial-corner-bottom-left {
+  bottom: 0;
+  left: 0;
+  transform: rotate(270deg);
+  animation-delay: 5.4s;
 }
 
-@keyframes abstractPulse {
-  from {
-    opacity: 0.35;
-    transform: scale(0.9);
-  }
-
-  to {
-    opacity: 0.7;
-    transform: scale(1.1);
-  }
+@keyframes editorialCornerCycle {
+  0%,
+  100% { opacity: 0.18; scale: 0.94; }
+  22%,
+  48% { opacity: 0.72; scale: 1; }
 }
 
 
@@ -272,6 +271,13 @@ body {
   .photo-three {
     display: none;
   }
+
+  .hero-editorial-corners {
+    top: 24%;
+    right: 15%;
+    bottom: 24%;
+    left: 15%;
+  }
 }
 
 
@@ -280,9 +286,129 @@ body {
 ========================================= */
 
 @media (prefers-reduced-motion: reduce) {
-
-  .photo-float,
-  .abstract-shape {
+  .photo-float {
     animation: none !important;
+    transition: none;
+  }
+
+  .editorial-corner {
+    animation: none !important;
+    transition: none;
+    opacity: 0.3;
+    scale: 1;
+  }
+
+  .hero-navbar::after {
+    animation: none;
+    transform: scaleX(1);
+  }
+
+}
+
+@keyframes mediaTickerMove {
+  to { transform: translateX(-50%); }
+}
+
+
+/* =========================================
+   3D CHROME RIBBON SECTION
+========================================= */
+
+.ribbon-section {
+  position: relative;
+  width: 100%;
+  height: 100svh;
+  min-height: 650px;
+  overflow: hidden;
+  background: #0b0b0b;
+  color: #fff;
+}
+
+.ribbon-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.ribbon-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ribbon-heading {
+  position: absolute;
+  z-index: 2;
+  top: 15%;
+  left: 8%;
+  pointer-events: none;
+}
+
+.ribbon-heading>span,
+.ribbon-caption {
+  color: #888;
+  font-size: 9px;
+  letter-spacing: 2px;
+}
+
+.ribbon-heading h2 {
+  margin: 25px 0 15px;
+  font-size: clamp(48px, 8vw, 100px);
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: -0.075em;
+}
+
+.ribbon-heading h2 span {
+  color: #ed3541;
+}
+
+.ribbon-heading p {
+  max-width: 300px;
+  color: #aaa;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.ribbon-caption {
+  position: absolute;
+  z-index: 2;
+  right: 6%;
+  bottom: 30px;
+  left: 6%;
+  display: flex;
+  justify-content: space-between;
+}
+
+@media (max-width: 700px) {
+  .ribbon-section {
+    min-height: 620px;
+  }
+
+  .ribbon-heading {
+    top: 12%;
+    right: 5%;
+    left: 5%;
+    text-align: center;
+  }
+
+  .ribbon-heading h2 {
+    font-size: clamp(43px, 12vw, 68px);
+  }
+
+  .ribbon-heading p {
+    margin-right: auto;
+    margin-left: auto;
+    font-size: 10px;
+  }
+
+  .ribbon-caption {
+    right: 5%;
+    bottom: 20px;
+    left: 5%;
+    font-size: 7px;
   }
 }

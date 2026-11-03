@@ -1,7 +1,7 @@
 
 <template>
   <nav
-    class="flex h-[82px] items-center justify-between border-b border-[#292929]"
+    class="hero-navbar flex h-[82px] items-center justify-between"
     aria-label="Navigasi utama"
   >
     <a

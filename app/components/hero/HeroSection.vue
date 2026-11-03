@@ -2,7 +2,6 @@
 import HeroNavbar from './HeroNavbar.vue'
 import HeroHeadline from './HeroHeadline.vue'
 import HeroGallery from './HeroGallery.vue'
-import HeroAbstract from './HeroAbstract.vue'
 </script>
 
 <template>
@@ -12,7 +11,12 @@ import HeroAbstract from './HeroAbstract.vue'
       <span class="red-dot" aria-hidden="true"></span>
       MEDIA LOKAL · INFORMASI · PERIKLANAN
     </div>
-    <HeroAbstract />
+    <div class="hero-editorial-corners" aria-hidden="true">
+      <span class="editorial-corner editorial-corner-top-left"></span>
+      <span class="editorial-corner editorial-corner-top-right"></span>
+      <span class="editorial-corner editorial-corner-bottom-right"></span>
+      <span class="editorial-corner editorial-corner-bottom-left"></span>
+    </div>
     <HeroHeadline />
     <HeroGallery />
     <div class="hero-bottom">
