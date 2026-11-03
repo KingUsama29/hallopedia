@@ -1,0 +1,288 @@
+/* =========================================
+   GLOBAL
+========================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#__nuxt {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #0b0b0b;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+
+/* =========================================
+   HERO SECTION
+========================================= */
+
+.hero {
+  position: relative;
+  min-height: max(100svh, 650px);
+  overflow: hidden;
+  padding: 0 6%;
+  background: #0b0b0b;
+  color: #fff;
+}
+
+.hero-label {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 38px;
+  color: #aaa;
+  font-size: 10px;
+  letter-spacing: 2px;
+}
+
+.red-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ed3541;
+}
+
+.hero-bottom {
+  position: absolute;
+  z-index: 4;
+  right: 6%;
+  bottom: 25px;
+  left: 6%;
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.hero-bottom p {
+  margin: 0;
+  color: #aaa;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.bottom-services {
+  display: flex;
+  gap: 20px;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+.bottom-services span:last-child,
+.scroll-indicator span {
+  color: #ed3541;
+}
+
+.scroll-indicator {
+  color: #aaa;
+  font-size: 9px;
+  letter-spacing: 1px;
+}
+
+.scroll-indicator span {
+  margin-left: 8px;
+}
+
+
+/* =========================================
+   HERO GALLERY
+========================================= */
+
+.photo-one {
+  top: 28%;
+  left: 7%;
+  transform: rotate(-7deg);
+}
+
+.photo-two {
+  top: 22%;
+  right: 8%;
+  transform: rotate(6deg);
+}
+
+.photo-three {
+  right: 13%;
+  bottom: 17%;
+  z-index: 1;
+  transform: rotate(-5deg);
+}
+
+.photo-two img {
+  animation-delay: -2s;
+}
+
+.photo-three img {
+  animation-duration: 9s;
+  animation-delay: -4s;
+}
+
+.photo-float {
+  animation: photoFloat 8s ease-in-out infinite;
+}
+
+@keyframes photoFloat {
+
+  0%,
+  100% {
+    translate: 0 0;
+    scale: 1;
+  }
+
+  50% {
+    translate: 0 -17px;
+    scale: 1.015;
+  }
+}
+
+
+/* =========================================
+   HERO ABSTRACT
+========================================= */
+
+.abstract-shape {
+  position: absolute;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+}
+
+.shape-one {
+  top: 80px;
+  left: 70px;
+  width: 320px;
+  height: 100px;
+  background: linear-gradient(90deg,
+      transparent,
+      #9e202b,
+      #4b151a,
+      transparent);
+  transform: rotate(-25deg);
+  animation: abstractMove 12s ease-in-out infinite alternate;
+}
+
+.shape-two {
+  top: 170px;
+  left: 130px;
+  width: 260px;
+  height: 75px;
+  background: linear-gradient(90deg,
+      transparent,
+      #777,
+      #292929,
+      transparent);
+  transform: rotate(25deg);
+  animation: abstractMoveTwo 15s ease-in-out infinite alternate;
+}
+
+.shape-three {
+  top: 120px;
+  left: 160px;
+  width: 180px;
+  height: 55px;
+  background: #9e202b;
+  filter: blur(25px);
+  animation: abstractPulse 9s ease-in-out infinite alternate;
+}
+
+@keyframes abstractMove {
+  from {
+    transform: translate(-12px, -8px) rotate(-25deg);
+  }
+
+  to {
+    transform: translate(18px, 12px) rotate(-12deg);
+  }
+}
+
+@keyframes abstractMoveTwo {
+  from {
+    transform: translate(12px, 10px) rotate(25deg);
+  }
+
+  to {
+    transform: translate(-15px, -12px) rotate(12deg);
+  }
+}
+
+@keyframes abstractPulse {
+  from {
+    opacity: 0.35;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 0.7;
+    transform: scale(1.1);
+  }
+}
+
+
+/* =========================================
+   RESPONSIVE
+========================================= */
+
+@media (max-width: 700px) {
+  .hero {
+    min-height: max(100svh, 620px);
+    padding: 0 5%;
+  }
+
+  .hero-label {
+    margin-top: 32px;
+    font-size: 8px;
+  }
+
+  .hero-bottom {
+    bottom: 18px;
+    flex-wrap: wrap;
+  }
+
+  .hero-bottom p {
+    width: 100%;
+    font-size: 10px;
+  }
+
+  .bottom-services {
+    gap: 10px;
+    font-size: 7px;
+  }
+
+  .scroll-indicator {
+    font-size: 7px;
+  }
+
+  .photo-one {
+    top: 24%;
+    left: 5%;
+  }
+
+  .photo-two {
+    top: 63%;
+    right: 5%;
+  }
+
+  .photo-three {
+    display: none;
+  }
+}
+
+
+/* =========================================
+   ACCESSIBILITY
+========================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+  .photo-float,
+  .abstract-shape {
+    animation: none !important;
+  }
+}
