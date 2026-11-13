@@ -5,7 +5,7 @@ import HeroGallery from './HeroGallery.vue'
 </script>
 
 <template>
-  <main class="hero">
+  <section class="hero" aria-label="Beranda Hallopedia">
     <HeroNavbar />
     <div class="hero-label">
       <span class="red-dot" aria-hidden="true"></span>
@@ -28,9 +28,12 @@ import HeroGallery from './HeroGallery.vue'
         <span>JARINGAN MEDIA</span>
         <span>PERIKLANAN DIGITAL</span>
       </div>
-      <div class="scroll-indicator">
-        GULIR UNTUK MENJELAJAHI <span aria-hidden="true">↓</span>
-      </div>
+      <a
+        href="#katalog"
+        class="scroll-indicator no-underline transition-colors duration-200 hover:text-white"
+      >
+        LIHAT KATALOG HARGA <span aria-hidden="true">↓</span>
+      </a>
     </div>
-  </main>
+  </section>
 </template>

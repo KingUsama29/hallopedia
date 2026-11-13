@@ -3,31 +3,24 @@ import { computed, ref } from 'vue'
 
 const mediaPaths = [
   {
-    id: 'local-info',
+    id: 'media-network',
     number: '01',
-    title: 'Informasi daerah',
-    description: 'Membawa kabar dan isu sekitar lebih dekat ke audiens lokal.',
-    image: '/images/news3.jpg',
-    alt: 'Suasana kegiatan masyarakat di ruang publik',
-    label: 'CERITA DARI DAERAH',
-  },
-  {
-    id: 'field-coverage',
-    number: '02',
-    title: 'Liputan lapangan',
-    description: 'Merekam aktivitas dan cerita yang lahir langsung dari lapangan.',
+    title: 'Jaringan media',
+    description: 'Berita dan informasi lokal yang dekat dengan audiens daerah.',
     image: '/images/news1.jpg',
     alt: 'Jurnalis dan warga meliput kegiatan di lapangan',
-    label: 'DARI LAPANGAN',
+    eyebrow: 'JARINGAN MEDIA / KALIMANTAN',
+    label: 'PELIPUTAN BERITA',
   },
   {
-    id: 'digital-promotion',
-    number: '03',
-    title: 'Promosi digital',
-    description: 'Membuka ruang bagi bisnis untuk menjangkau audiens melalui media Hallopedia.',
-    image: '/images/news2.jpg',
-    alt: 'Konten berita lokal ditampilkan melalui layar ponsel',
-    label: 'RUANG UNTUK BRAND LOKAL',
+    id: 'digital-advertising',
+    number: '02',
+    title: 'Periklanan digital',
+    description: 'Ruang promosi bagi bisnis melalui jaringan media Hallopedia.',
+    image: '/images/iklan.jpg',
+    alt: 'Proses produksi iklan di studio',
+    eyebrow: 'RUANG IKLAN DIGITAL',
+    label: 'PRODUKSI IKLAN',
   },
 ]
 
@@ -37,14 +30,15 @@ const activeMedia = computed(() => mediaPaths[activeMediaIndex.value]!)
 
 <template>
   <section
-    class="bg-[#0b0b0b] px-[6%] py-[clamp(88px,12vw,160px)] text-white
+    id="media-network"
+    class="overflow-x-clip bg-[#0b0b0b] px-[6%] py-[clamp(88px,12vw,160px)] text-white
       max-[700px]:px-[5%] max-[700px]:py-[84px]"
     aria-labelledby="media-network-title"
   >
     <div class="mx-auto w-full max-w-[1600px]">
       <div class="flex items-center gap-[10px] text-[10px] tracking-[2px] text-[#999]">
         <span class="h-[7px] w-[7px] rounded-full bg-[#ed3541]" aria-hidden="true"></span>
-        03 / JARINGAN MEDIA
+        JARINGAN MEDIA
       </div>
 
       <div class="mt-[clamp(34px,5vw,64px)] grid gap-8 lg:grid-cols-[1.4fr_0.6fr] lg:items-end">
@@ -129,7 +123,7 @@ const activeMedia = computed(() => mediaPaths[activeMediaIndex.value]!)
                 class="absolute inset-x-0 bottom-0 flex items-end justify-between gap-4 p-[clamp(16px,3vw,34px)]
                   text-[9px] tracking-[1.5px] text-white max-[700px]:text-[8px]"
               >
-                <span>HALLOPEDIA / KALIMANTAN</span>
+                <span>{{ activeMedia.eyebrow }}</span>
                 <span class="text-right">{{ activeMedia.label }}</span>
               </figcaption>
             </figure>
