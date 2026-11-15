@@ -51,6 +51,9 @@ function createLocalCatalogPayload(): CatalogPayload {
   return buildPayloadFromLists(MEDIA_ACCOUNTS, CATALOG_PACKAGES)
 }
 
+// Guard in-flight client-side agar pemanggilan paralel antar-section tidak memicu double-fetch
+let clientInFlightLoad: Promise<void> | null = null
+
 export function useCatalogData() {
   const catalogState = useState<AsyncViewState<CatalogPayload>>(
     'hallopedia:catalog-data',
@@ -78,23 +81,42 @@ export function useCatalogData() {
       : [],
   )
 
-  async function loadCatalog(fetcher?: CatalogFetcher) {
-    catalogState.value = { status: 'loading' }
-    try {
-      const source = fetcher
-        ? await fetcher()
-        : { accounts: MEDIA_ACCOUNTS, packages: CATALOG_PACKAGES }
-      catalogState.value = {
-        status: 'success',
-        data: buildPayloadFromLists(source.accounts, source.packages),
-      }
-    } catch (error) {
-      const message =
-        error instanceof Error && error.message
-          ? error.message
-          : 'Gagal memuat katalog layanan Hallopedia. Silakan coba lagi.'
-      catalogState.value = { status: 'error', message }
+  async function loadCatalog(
+    fetcher?: CatalogFetcher,
+    options: { force?: boolean } = {},
+  ) {
+    if (import.meta.client && clientInFlightLoad && !options.force) {
+      return clientInFlightLoad
     }
+
+    const run = async () => {
+      catalogState.value = { status: 'loading' }
+      try {
+        const source = fetcher
+          ? await fetcher()
+          : { accounts: MEDIA_ACCOUNTS, packages: CATALOG_PACKAGES }
+        catalogState.value = {
+          status: 'success',
+          data: buildPayloadFromLists(source.accounts, source.packages),
+        }
+      } catch (error) {
+        const message =
+          error instanceof Error && error.message
+            ? error.message
+            : 'Gagal memuat katalog layanan Hallopedia. Silakan coba lagi.'
+        catalogState.value = { status: 'error', message }
+      }
+    }
+
+    if (!import.meta.client) {
+      return run()
+    }
+
+    const task = run().finally(() => {
+      if (clientInFlightLoad === task) clientInFlightLoad = null
+    })
+    clientInFlightLoad = task
+    return task
   }
 
   return {
