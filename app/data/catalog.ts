@@ -1,48 +1,55 @@
+import {
+  CATALOG_PACKAGES, COLLAB_MAX_ACCOUNTS, COLLAB_MIN_ACCOUNTS, MEDIA_ACCOUNTS,
+} from './catalog-fixtures.ts'
+
+export { CATALOG_PACKAGES, COLLAB_MAX_ACCOUNTS, COLLAB_MIN_ACCOUNTS, MEDIA_ACCOUNTS }
+
 export type ServiceType = 'DIRECT_POST' | 'VISIT_PRODUCTION'
-
-export type DistributionMode =
-  | 'SINGLE_ACCOUNT'
-  | 'COLLAB_POST'
-  | 'SEPARATE_POSTS'
-
-export type RegionalScope =
-  | 'SAMARINDA'
-  | 'BALIKPAPAN'
-  | 'KALTIM'
-  | 'KALIMANTAN'
-
+export type DistributionMode = 'SINGLE_ACCOUNT' | 'COLLAB_POST' | 'SEPARATE_POSTS'
+export type RegionalScope = string
 export type PaymentScheme = 'FULL' | 'DP' | 'INVOICE'
+export type PackagePricingStrategy = 'FIXED_PACKAGE' | 'CUSTOM_PER_ACCOUNT'
+
+export interface MediaAccountPricing {
+  directSinglePriceIdr: number
+  collabAddOnPriceIdr: number
+  separatePostPriceIdr: number
+  visitAddOnPriceIdr: number
+}
 
 export interface MediaAccount {
   id: string
   name: string
   handle: string
-  region: RegionalScope
+  profileUrl: string
+  regionCode: string
+  regionLabel: string
   monogram: string
   logoPath?: string
+  isActive: boolean
+  pricing: MediaAccountPricing
+}
+
+export interface RegionGroup {
+  code: string
+  label: string
+  accountIds: string[]
 }
 
 export type PackageDeliverableSpec =
-  | {
-      serviceType: 'DIRECT_POST'
-      postFormats: ('FEED' | 'REELS' | 'STORY' | 'CAROUSEL')[]
-      includesRevision: boolean
-    }
-  | {
-      serviceType: 'VISIT_PRODUCTION'
-      postFormats: ('REELS' | 'STORY' | 'FEED')[]
-      visitDurationHours: number
-      includesScriptAndEditing: true
-    }
+  | { serviceType: 'DIRECT_POST'; postFormats: ('FEED' | 'REELS' | 'STORY' | 'CAROUSEL')[]; includesRevision: boolean }
+  | { serviceType: 'VISIT_PRODUCTION'; postFormats: ('REELS' | 'STORY' | 'FEED')[]; visitDurationHours: number; includesScriptAndEditing: true }
 
 export interface CatalogPackage {
   id: string
   sku: string
   name: string
   tagline: string
+  pricingStrategy: PackagePricingStrategy
   serviceType: ServiceType
   distributionMode: DistributionMode
   regionalScope: RegionalScope
+  regionalLabel: string
   includedAccountIds: string[]
   maxAccountsAllowed: number
   priceIdr: number
@@ -53,98 +60,22 @@ export interface CatalogPackage {
   featured?: boolean
 }
 
-export const COLLAB_MAX_ACCOUNTS = 5
+export interface ConfiguredOrderDraft {
+  sourcePackageId: string | null
+  sourcePackageSku: string | null
+  sourceName: string
+  pricingStrategy: PackagePricingStrategy
+  serviceType: ServiceType
+  distributionMode: DistributionMode
+  selectedAccountIds: string[]
+  paymentScheme: PaymentScheme
+  totalPriceIdr: number
+  payNowIdr: number
+}
 
-export const MEDIA_ACCOUNTS: readonly MediaAccount[] = [
-  {
-    id: 'hallosamarinda',
-    name: 'Hallosamarinda',
-    handle: '@hallosamarinda',
-    region: 'SAMARINDA',
-    monogram: 'HS',
-  },
-  {
-    id: 'busamsamarinda',
-    name: 'Busamsamarinda',
-    handle: '@busamsamarinda',
-    region: 'SAMARINDA',
-    monogram: 'BS',
-  },
-  {
-    id: 'samarindaterkini',
-    name: 'Samarindaterkini',
-    handle: '@samarindaterkini',
-    region: 'SAMARINDA',
-    monogram: 'ST',
-  },
-  {
-    id: 'samarindaku',
-    name: 'Samarindaku',
-    handle: '@samarindaku',
-    region: 'SAMARINDA',
-    monogram: 'SK',
-  },
-  {
-    id: 'samarindamedsos',
-    name: 'Samarindamedsos',
-    handle: '@samarindamedsos',
-    region: 'SAMARINDA',
-    monogram: 'SM',
-  },
-  {
-    id: 'samarindapedia',
-    name: 'Samarindapedia',
-    handle: '@samarindapedia',
-    region: 'SAMARINDA',
-    monogram: 'SP',
-  },
-  {
-    id: 'balikpapanmedsos',
-    name: 'Balikpapanmedsos',
-    handle: '@balikpapanmedsos',
-    region: 'BALIKPAPAN',
-    monogram: 'BM',
-  },
-  {
-    id: 'infobalikpapanku',
-    name: 'Infobalikpapanku',
-    handle: '@infobalikpapanku',
-    region: 'BALIKPAPAN',
-    monogram: 'IB',
-    logoPath: '/images/infobalikpapanku.jpeg',
-  },
-  {
-    id: 'hallobalikpapan',
-    name: 'Hallobalikpapan',
-    handle: '@hallobalikpapan',
-    region: 'BALIKPAPAN',
-    monogram: 'HB',
-  },
-  {
-    id: 'kaltimku',
-    name: 'Kaltimku',
-    handle: '@kaltimku',
-    region: 'KALTIM',
-    monogram: 'KT',
-    logoPath: '/images/kaltimku.jpg',
-  },
-  {
-    id: 'hallokalimantan',
-    name: 'Hallokalimantan',
-    handle: '@hallokalimantan',
-    region: 'KALIMANTAN',
-    monogram: 'HK',
-    logoPath: '/images/hallokalimantan.jpg',
-  },
-  {
-    id: 'hallopedia',
-    name: 'Hallopedia',
-    handle: '@hallopedia',
-    region: 'KALIMANTAN',
-    monogram: 'HP',
-    logoPath: '/images/hallopedia.jpeg',
-  },
-] as const
+export const ALL_PAYMENT_SCHEMES: readonly PaymentScheme[] = ['FULL', 'DP', 'INVOICE']
+export const VISIT_COLLAB_OR_SINGLE_BASE_FEE_IDR = 1_600_000
+export const VISIT_SEPARATE_BASE_FEE_IDR = 2_100_000
 
 export const SERVICE_TYPE_LABELS: Record<ServiceType, string> = {
   DIRECT_POST: 'Publikasi Langsung',
@@ -157,7 +88,7 @@ export const DISTRIBUTION_MODE_LABELS: Record<DistributionMode, string> = {
   SEPARATE_POSTS: 'Post Terpisah (Tanpa Collab)',
 }
 
-export const REGIONAL_SCOPE_LABELS: Record<RegionalScope, string> = {
+export const REGIONAL_SCOPE_LABELS: Record<string, string> = {
   SAMARINDA: 'Regional Samarinda',
   BALIKPAPAN: 'Regional Balikpapan',
   KALTIM: 'Regional Kaltim',
@@ -170,219 +101,268 @@ export const PAYMENT_SCHEME_LABELS: Record<PaymentScheme, string> = {
   INVOICE: 'Invoice',
 }
 
-export const CATALOG_PACKAGES: readonly CatalogPackage[] = [
-  {
-    id: 'pkg-single-direct',
-    sku: 'HLP-DP-01',
-    name: 'Publikasi Satuan (1 Akun Pilihan)',
-    tagline:
-      'Tayang langsung pada satu akun regional atau tematik pilihan untuk promosi cepat dan terarah.',
-    serviceType: 'DIRECT_POST',
-    distributionMode: 'SINGLE_ACCOUNT',
-    regionalScope: 'SAMARINDA',
-    includedAccountIds: ['hallosamarinda'],
-    maxAccountsAllowed: 1,
-    priceIdr: 350_000,
-    priceNote: 'Per 1x publikasi materi siap tayang',
-    deliverables: [
-      '1x Feed / Reels pada 1 akun pilihan',
-      '1x Story 24 jam + tautan swipe / link',
-      'Penjadwalan jam tayang prime-time daerah',
-    ],
-    spec: {
-      serviceType: 'DIRECT_POST',
-      postFormats: ['FEED', 'REELS', 'STORY'],
-      includesRevision: true,
-    },
-    paymentSchemes: ['FULL', 'DP', 'INVOICE'],
-  },
-  {
-    id: 'pkg-smd-collab',
-    sku: 'HLP-DP-02',
-    name: 'Samarinda Collab Boost (5 Akun)',
-    tagline:
-      'Satu konten kolaborasi yang tayang serentak di 5 akun utama Samarinda untuk jangkauan lokal maksimal.',
-    serviceType: 'DIRECT_POST',
-    distributionMode: 'COLLAB_POST',
-    regionalScope: 'SAMARINDA',
-    includedAccountIds: [
-      'hallosamarinda',
-      'busamsamarinda',
-      'samarindaterkini',
-      'samarindaku',
-      'samarindamedsos',
-    ],
-    maxAccountsAllowed: COLLAB_MAX_ACCOUNTS,
-    priceIdr: 1_150_000,
-    priceNote: 'Paket kolaborasi hingga 5 akun Samarinda',
-    deliverables: [
-      '1x Collab Feed / Reels di 5 akun Samarinda',
-      'Mirroring Story di masing-masing akun collab',
-      'Konsultasi caption & tagar lokal Samarinda',
-    ],
-    spec: {
-      serviceType: 'DIRECT_POST',
-      postFormats: ['FEED', 'REELS', 'STORY', 'CAROUSEL'],
-      includesRevision: true,
-    },
-    paymentSchemes: ['FULL', 'DP', 'INVOICE'],
-    featured: true,
-  },
-  {
-    id: 'pkg-bpn-cluster',
-    sku: 'HLP-DP-03',
-    name: 'Klaster Regional Balikpapan (3 Akun)',
-    tagline:
-      'Menjangkau audiens Balikpapan melalui 3 akun jaringan utama dengan opsi Collab atau Post Terpisah.',
-    serviceType: 'DIRECT_POST',
-    distributionMode: 'COLLAB_POST',
-    regionalScope: 'BALIKPAPAN',
-    includedAccountIds: [
-      'balikpapanmedsos',
-      'infobalikpapanku',
-      'hallobalikpapan',
-    ],
-    maxAccountsAllowed: 3,
-    priceIdr: 850_000,
-    priceNote: 'Cakupan penuh jaringan Balikpapan',
-    deliverables: [
-      'Publikasi di 3 akun Balikpapan (Collab / Terpisah)',
-      'Story 24 jam di seluruh akun klaster Balikpapan',
-      'Laporan tautan tayang setelah publikasi',
-    ],
-    spec: {
-      serviceType: 'DIRECT_POST',
-      postFormats: ['FEED', 'REELS', 'STORY'],
-      includesRevision: true,
-    },
-    paymentSchemes: ['FULL', 'DP', 'INVOICE'],
-  },
-  {
-    id: 'pkg-kalimantan-separate',
-    sku: 'HLP-DP-04',
-    name: 'Dominasi Kalimantan (12 Akun Terpisah)',
-    tagline:
-      'Publikasi masing-masing tanpa batas collab di seluruh 12 akun jaringan Hallopedia se-Kalimantan.',
-    serviceType: 'DIRECT_POST',
-    distributionMode: 'SEPARATE_POSTS',
-    regionalScope: 'KALIMANTAN',
-    includedAccountIds: MEDIA_ACCOUNTS.map((account) => account.id),
-    maxAccountsAllowed: MEDIA_ACCOUNTS.length,
-    priceIdr: 2_400_000,
-    priceNote: '12 post terpisah lintas Samarinda, Balikpapan & Kaltim',
-    deliverables: [
-      '12x Post terpisah tanpa batas 5 akun collab',
-      'Penyesuaian angle caption per wilayah kota',
-      'Rekap laporan tayang terstruktur dari admin',
-    ],
-    spec: {
-      serviceType: 'DIRECT_POST',
-      postFormats: ['FEED', 'REELS', 'STORY', 'CAROUSEL'],
-      includesRevision: true,
-    },
-    paymentSchemes: ['FULL', 'DP', 'INVOICE'],
-  },
-  {
-    id: 'pkg-visit-regional',
-    sku: 'HLP-VS-01',
-    name: 'Visit Produksi + Collab Regional (5 Akun)',
-    tagline:
-      'Tim produksi turun ke lokasi untuk pengambilan video, narasi, editing, dan publikasi collab 5 akun.',
-    serviceType: 'VISIT_PRODUCTION',
-    distributionMode: 'COLLAB_POST',
-    regionalScope: 'SAMARINDA',
-    includedAccountIds: [
-      'hallosamarinda',
-      'busamsamarinda',
-      'samarindaterkini',
-      'samarindaku',
-      'samarindapedia',
-    ],
-    maxAccountsAllowed: COLLAB_MAX_ACCOUNTS,
-    priceIdr: 2_750_000,
-    priceNote: 'Termasuk kru lapangan, skrip & editing video',
-    deliverables: [
-      'Kunjungan tim produksi ke lokasi (durasi s/d 3 jam)',
-      'Penyusunan skrip, voice-over/host & editing Reels',
-      'Publikasi Collab di 5 akun pilihan wilayah',
-    ],
-    spec: {
-      serviceType: 'VISIT_PRODUCTION',
-      postFormats: ['REELS', 'STORY'],
-      visitDurationHours: 3,
-      includesScriptAndEditing: true,
-    },
-    paymentSchemes: ['FULL', 'DP', 'INVOICE'],
-    featured: true,
-  },
-  {
-    id: 'pkg-visit-kalimantan',
-    sku: 'HLP-VS-02',
-    name: 'Visit Produksi + Distribusi Kaltim & Kalimantan',
-    tagline:
-      'Produksi video lapangan menyeluruh dengan distribusi post terpisah di jaringan Kaltim hingga Kalimantan.',
-    serviceType: 'VISIT_PRODUCTION',
-    distributionMode: 'SEPARATE_POSTS',
-    regionalScope: 'KALTIM',
-    includedAccountIds: [
-      'hallosamarinda',
-      'infobalikpapanku',
-      'hallobalikpapan',
-      'kaltimku',
-      'hallokalimantan',
-      'hallopedia',
-    ],
-    maxAccountsAllowed: MEDIA_ACCOUNTS.length,
-    priceIdr: 4_500_000,
-    priceNote: 'Produksi penuh + post terpisah 6 akun lintas kota',
-    deliverables: [
-      'Kunjungan produksi lokasi + arahan konsep kreatif',
-      'Video master HD + 1x revisi minor penyuntingan',
-      'Post terpisah di 6+ akun Kaltim & Kalimantan',
-    ],
-    spec: {
-      serviceType: 'VISIT_PRODUCTION',
-      postFormats: ['REELS', 'FEED', 'STORY'],
-      visitDurationHours: 4,
-      includesScriptAndEditing: true,
-    },
-    paymentSchemes: ['FULL', 'DP', 'INVOICE'],
-  },
-] as const
-
 export function formatIdr(amount: number): string {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    maximumFractionDigits: 0,
-  }).format(amount)
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(amount)
 }
 
-export function getAccountsByIds(accountIds: readonly string[]): MediaAccount[] {
-  const idSet = new Set(accountIds)
-  return MEDIA_ACCOUNTS.filter((account) => idSet.has(account.id))
+export function formatPaymentSchemes(schemes: readonly PaymentScheme[]): string {
+  return schemes.map((scheme) => PAYMENT_SCHEME_LABELS[scheme]).join(' · ')
 }
 
-export function calculateCustomPackagePrice(params: {
-  serviceType: ServiceType
-  distributionMode: DistributionMode
-  accountCount: number
-}): number {
-  const count = Math.max(1, params.accountCount)
-  const productionBase = params.serviceType === 'VISIT_PRODUCTION' ? 1_750_000 : 0
+export function sanitizeExternalProfileUrl(rawUrl: string): string | null {
+  try {
+    const parsed = new URL(rawUrl.trim())
+    return parsed.protocol === 'https:' ? parsed.toString() : null
+  } catch {
+    return null
+  }
+}
+
+export function isMatchingPackageTemplate(
+  pkg: CatalogPackage,
+  state: { serviceType: ServiceType; distributionMode: DistributionMode; selectedAccountIds: readonly string[] },
+): boolean {
+  if (
+    pkg.serviceType !== state.serviceType ||
+    pkg.distributionMode !== state.distributionMode ||
+    pkg.includedAccountIds.length !== state.selectedAccountIds.length
+  ) {
+    return false
+  }
+  const selectedSet = new Set(state.selectedAccountIds)
+  return pkg.includedAccountIds.every((id) => selectedSet.has(id))
+}
+
+export function getAccountsByIds(
+  accountIds: readonly string[],
+  accounts: readonly MediaAccount[] = MEDIA_ACCOUNTS,
+): MediaAccount[] {
+  const accountMap = new Map(accounts.map((account) => [account.id, account]))
+  const resolved: MediaAccount[] = []
+  for (const id of accountIds) {
+    const found = accountMap.get(id)
+    if (found) resolved.push(found)
+  }
+  return resolved
+}
+
+export function buildRegionGroups(accounts: readonly MediaAccount[] = MEDIA_ACCOUNTS): RegionGroup[] {
+  const groupMap = new Map<string, RegionGroup>()
+  for (const account of accounts) {
+    if (!account.isActive) continue
+    const existing = groupMap.get(account.regionCode)
+    if (existing) {
+      existing.accountIds.push(account.id)
+      continue
+    }
+    groupMap.set(account.regionCode, {
+      code: account.regionCode,
+      label: account.regionLabel || REGIONAL_SCOPE_LABELS[account.regionCode] || account.regionCode,
+      accountIds: [account.id],
+    })
+  }
+  return Array.from(groupMap.values())
+}
+
+export function getAccountUnitDisplayPrice(
+  account: MediaAccount,
+  serviceType: ServiceType,
+  distributionMode: DistributionMode,
+  isCollabHost = false,
+): number {
+  if (distributionMode === 'SINGLE_ACCOUNT') return account.pricing.directSinglePriceIdr
+  if (distributionMode === 'COLLAB_POST') {
+    return isCollabHost ? account.pricing.directSinglePriceIdr : account.pricing.collabAddOnPriceIdr
+  }
+  return serviceType === 'VISIT_PRODUCTION' ? account.pricing.visitAddOnPriceIdr : account.pricing.separatePostPriceIdr
+}
+
+function resolveCollabBreakdown(selectedAccounts: readonly MediaAccount[]): { hostAccountId: string | null; totalIdr: number } {
+  const capped = selectedAccounts.slice(0, COLLAB_MAX_ACCOUNTS)
+  if (capped.length === 0) return { hostAccountId: null, totalIdr: 0 }
+
+  let hostIndex = 0
+  for (let i = 1; i < capped.length; i++) {
+    if (capped[i]!.pricing.directSinglePriceIdr > capped[hostIndex]!.pricing.directSinglePriceIdr) hostIndex = i
+  }
+
+  const host = capped[hostIndex]!
+  const companionSum = capped.reduce(
+    (sum, account, index) => (index === hostIndex ? sum : sum + account.pricing.collabAddOnPriceIdr),
+    0,
+  )
+  return { hostAccountId: host.id, totalIdr: host.pricing.directSinglePriceIdr + companionSum }
+}
+
+export function resolveCollabHostAccountId(
+  selectedAccountIds: readonly string[],
+  accounts: readonly MediaAccount[] = MEDIA_ACCOUNTS,
+): string | null {
+  const activeAccounts = accounts.filter((account) => account.isActive)
+  return resolveCollabBreakdown(getAccountsByIds(selectedAccountIds, activeAccounts)).hostAccountId
+}
+
+export function calculateOrderEstimate(
+  params: {
+    pricingStrategy?: PackagePricingStrategy
+    serviceType: ServiceType
+    distributionMode: DistributionMode
+    selectedAccountIds: readonly string[]
+  },
+  accounts: readonly MediaAccount[] = MEDIA_ACCOUNTS,
+  sourcePackage: CatalogPackage | null = null,
+): number {
+  if (params.pricingStrategy === 'FIXED_PACKAGE' && sourcePackage && sourcePackage.pricingStrategy === 'FIXED_PACKAGE') {
+    return sourcePackage.priceIdr
+  }
+
+  const activeAccounts = accounts.filter((account) => account.isActive)
+  const selected = getAccountsByIds(params.selectedAccountIds, activeAccounts)
+  if (selected.length === 0) return 0
+
+  if (params.serviceType === 'DIRECT_POST') {
+    if (params.distributionMode === 'SINGLE_ACCOUNT') return selected[0]!.pricing.directSinglePriceIdr
+    if (params.distributionMode === 'COLLAB_POST') return resolveCollabBreakdown(selected).totalIdr
+    return selected.reduce((sum, account) => sum + account.pricing.separatePostPriceIdr, 0)
+  }
 
   if (params.distributionMode === 'SINGLE_ACCOUNT') {
-    return productionBase + 350_000
+    return VISIT_COLLAB_OR_SINGLE_BASE_FEE_IDR + selected[0]!.pricing.directSinglePriceIdr
   }
-
   if (params.distributionMode === 'COLLAB_POST') {
-    const capped = Math.min(count, COLLAB_MAX_ACCOUNTS)
-    const mediaCost = 350_000 + Math.max(0, capped - 1) * 200_000
-    return productionBase + mediaCost
+    return VISIT_COLLAB_OR_SINGLE_BASE_FEE_IDR + resolveCollabBreakdown(selected).totalIdr
   }
-
-  // SEPARATE_POSTS: each account gets its own standalone post
-  const mediaCost = count * 200_000 + 150_000
-  return productionBase + mediaCost
+  return VISIT_SEPARATE_BASE_FEE_IDR + selected.reduce((sum, account) => sum + account.pricing.visitAddOnPriceIdr, 0)
 }
 
+export function calculatePayNowAmount(totalPriceIdr: number, paymentScheme: PaymentScheme): number {
+  if (paymentScheme === 'DP') return Math.round(totalPriceIdr * 0.5)
+  if (paymentScheme === 'FULL') return totalPriceIdr
+  return 0
+}
+
+export function isValidConfiguredOrderDraft(
+  value: unknown,
+  activeAccounts: readonly MediaAccount[] = MEDIA_ACCOUNTS,
+  activePackages: readonly CatalogPackage[] = CATALOG_PACKAGES,
+): value is ConfiguredOrderDraft {
+  if (!value || typeof value !== 'object') return false
+  const candidate = value as Record<string, unknown>
+
+  const validService = candidate.serviceType === 'DIRECT_POST' || candidate.serviceType === 'VISIT_PRODUCTION'
+  const validMode =
+    candidate.distributionMode === 'SINGLE_ACCOUNT' ||
+    candidate.distributionMode === 'COLLAB_POST' ||
+    candidate.distributionMode === 'SEPARATE_POSTS'
+  const validScheme = candidate.paymentScheme === 'FULL' || candidate.paymentScheme === 'DP' || candidate.paymentScheme === 'INVOICE'
+  const validStrategy =
+    candidate.pricingStrategy === undefined ||
+    candidate.pricingStrategy === 'FIXED_PACKAGE' ||
+    candidate.pricingStrategy === 'CUSTOM_PER_ACCOUNT'
+
+  if (!validService || !validMode || !validScheme || !validStrategy) return false
+  if (typeof candidate.sourceName !== 'string' || !candidate.sourceName.trim()) return false
+  if (candidate.sourcePackageId !== undefined && candidate.sourcePackageId !== null && typeof candidate.sourcePackageId !== 'string') {
+    return false
+  }
+  if (candidate.sourcePackageSku !== null && typeof candidate.sourcePackageSku !== 'string') return false
+  if (!Array.isArray(candidate.selectedAccountIds)) return false
+
+  const validAccountIds = new Set(activeAccounts.filter((account) => account.isActive).map((a) => a.id))
+  const accountIds = candidate.selectedAccountIds.filter(
+    (id): id is string => typeof id === 'string' && validAccountIds.has(id),
+  )
+  if (accountIds.length !== candidate.selectedAccountIds.length || accountIds.length === 0) return false
+  if (
+    candidate.distributionMode === 'COLLAB_POST' &&
+    (accountIds.length < COLLAB_MIN_ACCOUNTS || accountIds.length > COLLAB_MAX_ACCOUNTS)
+  ) {
+    return false
+  }
+
+  if (candidate.pricingStrategy === 'FIXED_PACKAGE') {
+    const matchedPkg = activePackages.find(
+      (pkg) =>
+        (candidate.sourcePackageId && pkg.id === candidate.sourcePackageId) ||
+        (candidate.sourcePackageSku && pkg.sku === candidate.sourcePackageSku),
+    )
+    if (!matchedPkg || matchedPkg.pricingStrategy !== 'FIXED_PACKAGE') return false
+    if (!matchedPkg.paymentSchemes.includes(candidate.paymentScheme as PaymentScheme)) return false
+  }
+
+  return true
+}
+
+export function normalizeOrderDraft(
+  draft: ConfiguredOrderDraft,
+  activeAccounts: readonly MediaAccount[] = MEDIA_ACCOUNTS,
+  activePackages: readonly CatalogPackage[] = CATALOG_PACKAGES,
+): ConfiguredOrderDraft {
+  const validAccounts = activeAccounts.filter((account) => account.isActive)
+  const matchedPackage =
+    activePackages.find(
+      (pkg) =>
+        (draft.sourcePackageId && pkg.id === draft.sourcePackageId) ||
+        (draft.sourcePackageSku && pkg.sku === draft.sourcePackageSku),
+    ) ?? null
+
+  if (draft.pricingStrategy === 'FIXED_PACKAGE' && matchedPackage && matchedPackage.pricingStrategy === 'FIXED_PACKAGE') {
+    const allowedSchemes = matchedPackage.paymentSchemes
+    const paymentScheme = allowedSchemes.includes(draft.paymentScheme) ? draft.paymentScheme : (allowedSchemes[0] ?? 'FULL')
+    const validIds = new Set(validAccounts.map((a) => a.id))
+    const selectedAccountIds = matchedPackage.includedAccountIds.filter((id) => validIds.has(id))
+    const totalPriceIdr = matchedPackage.priceIdr
+    return {
+      sourcePackageId: matchedPackage.id,
+      sourcePackageSku: matchedPackage.sku,
+      sourceName: matchedPackage.name,
+      pricingStrategy: 'FIXED_PACKAGE',
+      serviceType: matchedPackage.serviceType,
+      distributionMode: matchedPackage.distributionMode,
+      selectedAccountIds,
+      paymentScheme,
+      totalPriceIdr,
+      payNowIdr: calculatePayNowAmount(totalPriceIdr, paymentScheme),
+    }
+  }
+
+  const validIds = new Set(validAccounts.map((a) => a.id))
+  let normalizedIds = Array.from(new Set(draft.selectedAccountIds)).filter((id) => validIds.has(id))
+
+  if (draft.distributionMode === 'SINGLE_ACCOUNT' && normalizedIds.length > 1) {
+    normalizedIds = [normalizedIds[0]!]
+  } else if (draft.distributionMode === 'COLLAB_POST' && normalizedIds.length > COLLAB_MAX_ACCOUNTS) {
+    normalizedIds = normalizedIds.slice(0, COLLAB_MAX_ACCOUNTS)
+  }
+
+  const totalPriceIdr = calculateOrderEstimate(
+    {
+      pricingStrategy: 'CUSTOM_PER_ACCOUNT',
+      serviceType: draft.serviceType,
+      distributionMode: draft.distributionMode,
+      selectedAccountIds: normalizedIds,
+    },
+    validAccounts,
+  )
+
+  const stillMatchesTemplate =
+    matchedPackage !== null &&
+    isMatchingPackageTemplate(matchedPackage, {
+      serviceType: draft.serviceType,
+      distributionMode: draft.distributionMode,
+      selectedAccountIds: normalizedIds,
+    })
+
+  return {
+    sourcePackageId: stillMatchesTemplate ? matchedPackage.id : null,
+    sourcePackageSku: stillMatchesTemplate ? matchedPackage.sku : null,
+    sourceName: stillMatchesTemplate ? matchedPackage.name : 'Paket Custom Hallopedia',
+    pricingStrategy: 'CUSTOM_PER_ACCOUNT',
+    serviceType: draft.serviceType,
+    distributionMode: draft.distributionMode,
+    selectedAccountIds: normalizedIds,
+    paymentScheme: draft.paymentScheme,
+    totalPriceIdr,
+    payNowIdr: calculatePayNowAmount(totalPriceIdr, draft.paymentScheme),
+  }
+}
