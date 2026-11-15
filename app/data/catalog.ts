@@ -9,6 +9,7 @@ export type DistributionMode = 'SINGLE_ACCOUNT' | 'COLLAB_POST' | 'SEPARATE_POST
 export type RegionalScope = string
 export type PaymentScheme = 'FULL' | 'DP' | 'INVOICE'
 export type PackagePricingStrategy = 'FIXED_PACKAGE' | 'CUSTOM_PER_ACCOUNT'
+export type MediaPlatform = 'INSTAGRAM' | 'TIKTOK' | 'YOUTUBE'
 
 export interface MediaAccountPricing {
   directSinglePriceIdr: number
@@ -17,10 +18,26 @@ export interface MediaAccountPricing {
   visitAddOnPriceIdr: number
 }
 
+export interface MediaRecentPost {
+  id: string
+  permalink: string
+  thumbnailUrl?: string | null
+  mediaType: 'IMAGE' | 'VIDEO' | 'CAROUSEL_ALBUM'
+  captionExcerpt?: string
+  publishedAt: string
+}
+
+export interface MediaAccountMetrics {
+  followersCount: number | null
+  mediaCount: number | null
+  syncedAt: string | null
+}
+
 export interface MediaAccount {
   id: string
   name: string
   handle: string
+  platform?: MediaPlatform
   profileUrl: string
   regionCode: string
   regionLabel: string
@@ -28,6 +45,8 @@ export interface MediaAccount {
   logoPath?: string
   isActive: boolean
   pricing: MediaAccountPricing
+  metrics?: MediaAccountMetrics
+  recentPosts?: readonly MediaRecentPost[]
 }
 
 export interface RegionGroup {
@@ -109,6 +128,8 @@ export function formatPaymentSchemes(schemes: readonly PaymentScheme[]): string 
   return schemes.map((scheme) => PAYMENT_SCHEME_LABELS[scheme]).join(' · ')
 }
 
+const ALLOWED_THUMBNAIL_HOST_SUFFIXES = ['.cdninstagram.com', '.fbcdn.net', '.supabase.co', '.supabase.in'] as const
+
 export function sanitizeExternalProfileUrl(rawUrl: string): string | null {
   try {
     const parsed = new URL(rawUrl.trim())
@@ -118,25 +139,61 @@ export function sanitizeExternalProfileUrl(rawUrl: string): string | null {
   }
 }
 
+export function sanitizeInstagramPermalink(rawUrl: string): string | null {
+  try {
+    const parsed = new URL(rawUrl.trim())
+    const isIgHost = parsed.hostname === 'www.instagram.com' || parsed.hostname === 'instagram.com'
+    return parsed.protocol === 'https:' && isIgHost ? parsed.toString() : null
+  } catch {
+    return null
+  }
+}
+
+export function sanitizeMediaThumbnailUrl(rawUrl: string): string | null {
+  const trimmed = rawUrl.trim()
+  if (trimmed.startsWith('/images/') && !trimmed.startsWith('//')) return trimmed
+  try {
+    const parsed = new URL(trimmed)
+    if (parsed.protocol !== 'https:') return null
+    const host = parsed.hostname.toLowerCase()
+    const isTrustedCdn = ALLOWED_THUMBNAIL_HOST_SUFFIXES.some((suffix) => host.endsWith(suffix))
+    return isTrustedCdn ? parsed.toString() : null
+  } catch {
+    return null
+  }
+}
+
+export function resolveAccountPlatformLabel(account: Pick<MediaAccount, 'platform'>): string {
+  return account.platform ?? 'INSTAGRAM'
+}
+
+export function formatCompactCount(value: number): string {
+  if (!Number.isFinite(value) || value < 0) return '0'
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace('.', ',').replace(/,0$/, '')} jt`
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1).replace('.', ',').replace(/,0$/, '')} rb`
+  return String(Math.round(value))
+}
+
+export function formatSyncedTimestamp(isoDate: string): string | null {
+  const ts = Date.parse(isoDate)
+  if (Number.isNaN(ts)) return null
+  return new Intl.DateTimeFormat('id-ID', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  }).format(new Date(ts))
+}
+
 export function isMatchingPackageTemplate(
   pkg: CatalogPackage,
   state: { serviceType: ServiceType; distributionMode: DistributionMode; selectedAccountIds: readonly string[] },
 ): boolean {
-  if (
-    pkg.serviceType !== state.serviceType ||
-    pkg.distributionMode !== state.distributionMode ||
-    pkg.includedAccountIds.length !== state.selectedAccountIds.length
-  ) {
+  if (pkg.serviceType !== state.serviceType || pkg.distributionMode !== state.distributionMode || pkg.includedAccountIds.length !== state.selectedAccountIds.length) {
     return false
   }
   const selectedSet = new Set(state.selectedAccountIds)
   return pkg.includedAccountIds.every((id) => selectedSet.has(id))
 }
 
-export function getAccountsByIds(
-  accountIds: readonly string[],
-  accounts: readonly MediaAccount[] = MEDIA_ACCOUNTS,
-): MediaAccount[] {
+export function getAccountsByIds(accountIds: readonly string[], accounts: readonly MediaAccount[] = MEDIA_ACCOUNTS): MediaAccount[] {
   const accountMap = new Map(accounts.map((account) => [account.id, account]))
   const resolved: MediaAccount[] = []
   for (const id of accountIds) {
@@ -164,16 +221,9 @@ export function buildRegionGroups(accounts: readonly MediaAccount[] = MEDIA_ACCO
   return Array.from(groupMap.values())
 }
 
-export function getAccountUnitDisplayPrice(
-  account: MediaAccount,
-  serviceType: ServiceType,
-  distributionMode: DistributionMode,
-  isCollabHost = false,
-): number {
+export function getAccountUnitDisplayPrice(account: MediaAccount, serviceType: ServiceType, distributionMode: DistributionMode, isCollabHost = false): number {
   if (distributionMode === 'SINGLE_ACCOUNT') return account.pricing.directSinglePriceIdr
-  if (distributionMode === 'COLLAB_POST') {
-    return isCollabHost ? account.pricing.directSinglePriceIdr : account.pricing.collabAddOnPriceIdr
-  }
+  if (distributionMode === 'COLLAB_POST') return isCollabHost ? account.pricing.directSinglePriceIdr : account.pricing.collabAddOnPriceIdr
   return serviceType === 'VISIT_PRODUCTION' ? account.pricing.visitAddOnPriceIdr : account.pricing.separatePostPriceIdr
 }
 
@@ -187,34 +237,21 @@ function resolveCollabBreakdown(selectedAccounts: readonly MediaAccount[]): { ho
   }
 
   const host = capped[hostIndex]!
-  const companionSum = capped.reduce(
-    (sum, account, index) => (index === hostIndex ? sum : sum + account.pricing.collabAddOnPriceIdr),
-    0,
-  )
+  const companionSum = capped.reduce((sum, account, index) => (index === hostIndex ? sum : sum + account.pricing.collabAddOnPriceIdr), 0)
   return { hostAccountId: host.id, totalIdr: host.pricing.directSinglePriceIdr + companionSum }
 }
 
-export function resolveCollabHostAccountId(
-  selectedAccountIds: readonly string[],
-  accounts: readonly MediaAccount[] = MEDIA_ACCOUNTS,
-): string | null {
+export function resolveCollabHostAccountId(selectedAccountIds: readonly string[], accounts: readonly MediaAccount[] = MEDIA_ACCOUNTS): string | null {
   const activeAccounts = accounts.filter((account) => account.isActive)
   return resolveCollabBreakdown(getAccountsByIds(selectedAccountIds, activeAccounts)).hostAccountId
 }
 
 export function calculateOrderEstimate(
-  params: {
-    pricingStrategy?: PackagePricingStrategy
-    serviceType: ServiceType
-    distributionMode: DistributionMode
-    selectedAccountIds: readonly string[]
-  },
+  params: { pricingStrategy?: PackagePricingStrategy; serviceType: ServiceType; distributionMode: DistributionMode; selectedAccountIds: readonly string[] },
   accounts: readonly MediaAccount[] = MEDIA_ACCOUNTS,
   sourcePackage: CatalogPackage | null = null,
 ): number {
-  if (params.pricingStrategy === 'FIXED_PACKAGE' && sourcePackage && sourcePackage.pricingStrategy === 'FIXED_PACKAGE') {
-    return sourcePackage.priceIdr
-  }
+  if (params.pricingStrategy === 'FIXED_PACKAGE' && sourcePackage && sourcePackage.pricingStrategy === 'FIXED_PACKAGE') return sourcePackage.priceIdr
 
   const activeAccounts = accounts.filter((account) => account.isActive)
   const selected = getAccountsByIds(params.selectedAccountIds, activeAccounts)
@@ -226,12 +263,8 @@ export function calculateOrderEstimate(
     return selected.reduce((sum, account) => sum + account.pricing.separatePostPriceIdr, 0)
   }
 
-  if (params.distributionMode === 'SINGLE_ACCOUNT') {
-    return VISIT_COLLAB_OR_SINGLE_BASE_FEE_IDR + selected[0]!.pricing.directSinglePriceIdr
-  }
-  if (params.distributionMode === 'COLLAB_POST') {
-    return VISIT_COLLAB_OR_SINGLE_BASE_FEE_IDR + resolveCollabBreakdown(selected).totalIdr
-  }
+  if (params.distributionMode === 'SINGLE_ACCOUNT') return VISIT_COLLAB_OR_SINGLE_BASE_FEE_IDR + selected[0]!.pricing.directSinglePriceIdr
+  if (params.distributionMode === 'COLLAB_POST') return VISIT_COLLAB_OR_SINGLE_BASE_FEE_IDR + resolveCollabBreakdown(selected).totalIdr
   return VISIT_SEPARATE_BASE_FEE_IDR + selected.reduce((sum, account) => sum + account.pricing.visitAddOnPriceIdr, 0)
 }
 
@@ -250,21 +283,13 @@ export function isValidConfiguredOrderDraft(
   const candidate = value as Record<string, unknown>
 
   const validService = candidate.serviceType === 'DIRECT_POST' || candidate.serviceType === 'VISIT_PRODUCTION'
-  const validMode =
-    candidate.distributionMode === 'SINGLE_ACCOUNT' ||
-    candidate.distributionMode === 'COLLAB_POST' ||
-    candidate.distributionMode === 'SEPARATE_POSTS'
+  const validMode = candidate.distributionMode === 'SINGLE_ACCOUNT' || candidate.distributionMode === 'COLLAB_POST' || candidate.distributionMode === 'SEPARATE_POSTS'
   const validScheme = candidate.paymentScheme === 'FULL' || candidate.paymentScheme === 'DP' || candidate.paymentScheme === 'INVOICE'
-  const validStrategy =
-    candidate.pricingStrategy === undefined ||
-    candidate.pricingStrategy === 'FIXED_PACKAGE' ||
-    candidate.pricingStrategy === 'CUSTOM_PER_ACCOUNT'
+  const validStrategy = candidate.pricingStrategy === undefined || candidate.pricingStrategy === 'FIXED_PACKAGE' || candidate.pricingStrategy === 'CUSTOM_PER_ACCOUNT'
 
   if (!validService || !validMode || !validScheme || !validStrategy) return false
   if (typeof candidate.sourceName !== 'string' || !candidate.sourceName.trim()) return false
-  if (candidate.sourcePackageId !== undefined && candidate.sourcePackageId !== null && typeof candidate.sourcePackageId !== 'string') {
-    return false
-  }
+  if (candidate.sourcePackageId !== undefined && candidate.sourcePackageId !== null && typeof candidate.sourcePackageId !== 'string') return false
   if (candidate.sourcePackageSku !== null && typeof candidate.sourcePackageSku !== 'string') return false
   if (!Array.isArray(candidate.selectedAccountIds)) return false
 

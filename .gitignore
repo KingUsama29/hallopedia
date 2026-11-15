@@ -26,3 +26,4 @@ logs
 
 # Local private documentation, skill guides & implementation plans (never commit/push)
 information/
+.agents/

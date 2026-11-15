@@ -9,13 +9,18 @@ import {
   buildRegionGroups,
   calculateOrderEstimate,
   calculatePayNowAmount,
+  formatCompactCount,
   formatPaymentSchemes,
+  formatSyncedTimestamp,
   getAccountUnitDisplayPrice,
   getAccountsByIds,
   isMatchingPackageTemplate,
   isValidConfiguredOrderDraft,
   normalizeOrderDraft,
+  resolveAccountPlatformLabel,
   sanitizeExternalProfileUrl,
+  sanitizeInstagramPermalink,
+  sanitizeMediaThumbnailUrl,
 } from '../app/data/catalog.ts'
 
 const EXPECTED_INSTAGRAM_URLS = new Set([
@@ -475,7 +480,59 @@ assert.equal(
 )
 console.log('[PASS] Deteksi perubahan template (Template Drift) & formatPaymentSchemes terverifikasi.')
 
-// 7. Verifikasi Batas Modularitas (< 400 baris per file di dalam app/)
+// 6.5 Verifikasi Kontrak Metrik & Feed Instagram (01H: Tanpa Data Fiktif + Sanitasi Permalink)
+assert.equal(formatCompactCount(950), '950')
+assert.equal(formatCompactCount(15_000), '15 rb')
+assert.equal(formatCompactCount(128_400), '128,4 rb')
+assert.equal(formatCompactCount(1_240_000), '1,2 jt')
+assert.equal(formatCompactCount(-5), '0')
+
+assert.equal(
+  sanitizeInstagramPermalink('https://www.instagram.com/p/C9xyz123/'),
+  'https://www.instagram.com/p/C9xyz123/',
+)
+assert.equal(
+  sanitizeInstagramPermalink('https://instagram.com/reel/C9abc456/'),
+  'https://instagram.com/reel/C9abc456/',
+)
+assert.equal(sanitizeInstagramPermalink('https://evil.example.com/p/123/'), null)
+assert.equal(sanitizeInstagramPermalink('http://www.instagram.com/p/123/'), null)
+assert.equal(sanitizeInstagramPermalink('javascript:alert(1)'), null)
+assert.ok(formatSyncedTimestamp('2026-11-15T12:00:00Z'))
+assert.equal(formatSyncedTimestamp('invalid-date'), null)
+
+assert.equal(sanitizeMediaThumbnailUrl('/images/kaltimku.jpg'), '/images/kaltimku.jpg')
+assert.equal(
+  sanitizeMediaThumbnailUrl('https://scontent-cgk1-1.cdninstagram.com/v/t51.2885-15/123.jpg'),
+  'https://scontent-cgk1-1.cdninstagram.com/v/t51.2885-15/123.jpg',
+)
+assert.equal(
+  sanitizeMediaThumbnailUrl('https://abc.supabase.co/storage/v1/object/public/media-previews/p1.jpg'),
+  'https://abc.supabase.co/storage/v1/object/public/media-previews/p1.jpg',
+)
+assert.equal(sanitizeMediaThumbnailUrl('//evil.example.com/pixel.png'), null)
+assert.equal(sanitizeMediaThumbnailUrl('https://tracker.evil.com/pixel.png'), null)
+assert.equal(sanitizeMediaThumbnailUrl('http://scontent.cdninstagram.com/p.jpg'), null)
+assert.equal(sanitizeMediaThumbnailUrl('javascript:alert(1)'), null)
+
+assert.equal(resolveAccountPlatformLabel({}), 'INSTAGRAM')
+assert.equal(resolveAccountPlatformLabel({ platform: 'TIKTOK' }), 'TIKTOK')
+
+for (const acc of MEDIA_ACCOUNTS) {
+  assert.equal(
+    acc.metrics,
+    undefined,
+    `Baseline ${acc.id} tidak boleh mengarang angka followers fiktif sebelum API backend aktif`,
+  )
+  assert.equal(
+    acc.recentPosts,
+    undefined,
+    `Baseline ${acc.id} tidak boleh mengarang postingan fiktif sebelum API backend aktif`,
+  )
+}
+console.log('[PASS] Kontrak metrik opsional, allowlist CDN thumbnail, & platform label (01H/01I) terverifikasi.')
+
+// 7. Verifikasi Batas Modularitas (< 400 baris) & Kebersihan Copy Produksi di app/
 function collectCodeFiles(dirPath) {
   const results = []
   for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
@@ -489,16 +546,28 @@ function collectCodeFiles(dirPath) {
   return results
 }
 
+const FORBIDDEN_INTERNAL_JARGON = ['SIAP SINKRONISASI API', 'DUMMY DATA', 'LOREM IPSUM']
 const appRoot = resolve('app')
 const codeFiles = collectCodeFiles(appRoot)
 for (const filePath of codeFiles) {
-  const lineCount = readFileSync(filePath, 'utf8').split(/\r?\n/).length
+  const content = readFileSync(filePath, 'utf8')
+  const lineCount = content.split(/\r?\n/).length
   const relPath = relative(process.cwd(), filePath)
   assert.ok(
     lineCount <= 400,
     `File ${relPath} memiliki ${lineCount} baris (melebihi batas modular 400 baris)`,
   )
+  if (filePath.endsWith('.vue')) {
+    const upper = content.toUpperCase()
+    for (const token of FORBIDDEN_INTERNAL_JARGON) {
+      assert.equal(
+        upper.includes(token),
+        false,
+        `File UI ${relPath} mengandung teks internal "${token}" yang tidak boleh tampil ke pengguna`,
+      )
+    }
+  }
 }
-console.log(`[PASS] Seluruh ${codeFiles.length} file di app/ berada di bawah batas 400 baris.`)
+console.log(`[PASS] Seluruh ${codeFiles.length} file di app/ berada di bawah batas 400 baris dan bebas jargon internal.`)
 
 console.log('\nSEMUA PENGECEKAN KATALOG DINAMIS LULUS (0 ERROR).')
