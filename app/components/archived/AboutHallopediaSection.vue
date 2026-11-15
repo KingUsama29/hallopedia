@@ -80,7 +80,10 @@ onMounted(async () => {
       ) => {
         characters.forEach((character, index) => {
           const position = index === 0 ? firstPosition : '+=0.045'
-          reveal.set(carets[index], { visibility: 'visible' }, position)
+          const currentCaret = carets[index]
+          if (currentCaret) {
+            reveal.set(currentCaret, { visibility: 'visible' }, position)
+          }
           reveal.fromTo(
             character,
             { autoAlpha: 0 },
@@ -88,14 +91,18 @@ onMounted(async () => {
             '<',
           )
 
-          if (index > 0) {
-            reveal.set(carets[index - 1], { visibility: 'hidden' }, '<')
+          const prevCaret = carets[index - 1]
+          if (index > 0 && prevCaret) {
+            reveal.set(prevCaret, { visibility: 'hidden' }, '<')
           }
         })
       }
 
       typeLine(firstLine, firstCarets)
-      reveal.set(firstCarets[firstCarets.length - 1], { visibility: 'hidden' })
+      const lastFirstCaret = firstCarets[firstCarets.length - 1]
+      if (lastFirstCaret) {
+        reveal.set(lastFirstCaret, { visibility: 'hidden' })
+      }
       typeLine(secondLine, secondCarets, '+=0.12')
     }
 

@@ -5,9 +5,13 @@ Dokumen ini adalah aturan kerja wajib bagi AI Agent pada repositori **Hallopedia
 ## 1. Kewajiban Aktivasi Skill Proyek (Anti-AI-Slop & Konsistensi Arsitektur)
 
 Sebelum merancang atau menulis kode pada area terkait, Anda **WAJIB** membaca dan mematuhi skill lokal berikut:
-- **Frontend (`frontend/`)**: Baca [`.agents/skills/anti-slop-frontend-design/SKILL.md`](.agents/skills/anti-slop-frontend-design/SKILL.md) untuk menjaga konsistensi desain editorial (`#0b0b0b`, `#ffffff`, `#ed3541`), mencegah tampilan *AI slop* / *company profile*, dan fokus pada katalog harga serta alur transaksi.
+- **Frontend (`app/` / `frontend/`)**: Baca [`.agents/skills/anti-slop-frontend-design/SKILL.md`](.agents/skills/anti-slop-frontend-design/SKILL.md) untuk menjaga konsistensi desain editorial (`#0b0b0b`, `#ffffff`, `#ed3541`), mencegah tampilan *AI slop* / *company profile*, dan fokus pada katalog harga serta alur transaksi.
 - **Backend (`backend/src/`)**: Baca [`.agents/skills/backend-clean-architecture/SKILL.md`](.agents/skills/backend-clean-architecture/SKILL.md) untuk mematuhi arsitektur berlapis (`routes` → `validators` → `controllers` → `services` → `prisma`), standar keamanan pembayaran Midtrans, dan batasan AI Chatbot.
 - **Database (`backend/prisma/`)**: Baca [`.agents/skills/database-schema-standards/SKILL.md`](.agents/skills/database-schema-standards/SKILL.md) serta skill `supabase-postgres-best-practices` sebelum membuat atau mengubah skema Prisma dan migrasi PostgreSQL.
+- **Review & Testing Gate Terpisah (Post-Build QA)**:
+  - **Frontend Lead Review & Test**: Baca [`.agents/skills/frontend-lead-review/SKILL.md`](.agents/skills/frontend-lead-review/SKILL.md) setiap kali diminta meninjau, mengkritisi, mengaudit UI/UX, aksesibilitas, responsivitas, state klien, atau menguji halaman/komponen frontend sebelum lanjut ke tahap berikutnya.
+  - **Backend & AppSec Lead Review & Test**: Baca [`.agents/skills/backend-lead-review/SKILL.md`](.agents/skills/backend-lead-review/SKILL.md) (dan jalankan `scripts/security-scan.mjs`) setiap kali diminta meninjau, mengaudit skema API/RESTful, integrasi database/Prisma, keamanan data, atau memindai celah keamanan backend sebelum integrasi atau rilis.
+- **Git & GitHub Profesional (`branch`, `pull`, `commit`, `push`, `PR`, `recovery`)**: Baca [`.agents/skills/github-pro-workflow/SKILL.md`](.agents/skills/github-pro-workflow/SKILL.md) dan jalankan `scripts/pre-commit-safety.mjs` sebelum melakukan staging/commit/push atau membuka Pull Request agar alur Feature Branch + Conventional Commits + keamanan secret tetap terjaga.
 
 ## 2. Prinsip Utama Bisnis & Produk
 

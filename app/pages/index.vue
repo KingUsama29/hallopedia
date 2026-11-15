@@ -5,8 +5,9 @@ import MediaNetworkSection from '~/components/sections/MediaNetworkSection.vue'
 </script>
 
 <template>
-  <HeroSection />
-  <CatalogSection />
-  <MediaNetworkSection />
+  <div id="homepage-root">
+    <HeroSection />
+    <CatalogSection />
+    <MediaNetworkSection />
+  </div>
 </template>
-
