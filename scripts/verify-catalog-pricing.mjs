@@ -22,6 +22,15 @@ import {
   sanitizeInstagramPermalink,
   sanitizeMediaThumbnailUrl,
 } from '../app/data/catalog.ts'
+import {
+  ASSISTANT_TEMPLATE_CHIPS,
+  buildDraftInquiryPrefill,
+  resolveLocalAiReply,
+} from '../app/data/assistant-widget.ts'
+import {
+  FOOTER_NAVIGATION,
+  TRANSACTION_FAQ_ITEMS,
+} from '../app/data/homepage-faq.ts'
 
 const EXPECTED_INSTAGRAM_URLS = new Set([
   'https://www.instagram.com/hallosamarinda/',
@@ -531,6 +540,64 @@ for (const acc of MEDIA_ACCOUNTS) {
   )
 }
 console.log('[PASS] Kontrak metrik opsional, allowlist CDN thumbnail, & platform label (01H/01I) terverifikasi.')
+
+// 6.8 Verifikasi Widget Mengambang AI/Admin, Disambiguasi Intent, FAQ, & Navigasi Footer (01K/01L)
+assert.ok(ASSISTANT_TEMPLATE_CHIPS.length >= 4, 'Widget AI wajib menyediakan minimal 4 template klik-ke-input')
+for (const chip of ASSISTANT_TEMPLATE_CHIPS) {
+  assert.ok(chip.promptText.trim().length > 5)
+  const chipReply = resolveLocalAiReply(chip.promptText, MEDIA_ACCOUNTS, CATALOG_PACKAGES, TRANSACTION_FAQ_ITEMS)
+  assert.ok(chipReply.text.length > 10 && !chipReply.text.includes('undefined') && !chipReply.text.includes('NaN'))
+  assert.equal(chipReply.suggestAdminHandoff, false)
+}
+
+const priceReply = resolveLocalAiReply('Berapa harga iklan 12 akun?', MEDIA_ACCOUNTS, CATALOG_PACKAGES, TRANSACTION_FAQ_ITEMS)
+assert.ok(priceReply.text.includes('Rp') && !priceReply.suggestAdminHandoff)
+
+const collabVsSepReply = resolveLocalAiReply('Apa beda collab dan post terpisah?', MEDIA_ACCOUNTS, CATALOG_PACKAGES, TRANSACTION_FAQ_ITEMS)
+assert.equal(collabVsSepReply.suggestAdminHandoff, false)
+assert.ok(collabVsSepReply.text.includes('5 akun') && !collabVsSepReply.text.includes('kru liputan'), 'Pertanyaan Collab vs Terpisah tidak boleh nyasar ke Visit')
+
+const dpVsInvoiceReply = resolveLocalAiReply('Apa beda DP 50% dan Invoice?', MEDIA_ACCOUNTS, CATALOG_PACKAGES, TRANSACTION_FAQ_ITEMS)
+assert.equal(dpVsInvoiceReply.suggestAdminHandoff, false)
+assert.ok(dpVsInvoiceReply.text.includes('Midtrans') && dpVsInvoiceReply.text.includes('Invoice'))
+
+const skuReply = resolveLocalAiReply('Info paket HLP-DP-04 Dominasi Kalimantan', MEDIA_ACCOUNTS, CATALOG_PACKAGES, TRANSACTION_FAQ_ITEMS)
+assert.equal(skuReply.suggestAdminHandoff, false)
+assert.ok(skuReply.text.includes('2.400.000') && skuReply.text.includes('12 akun'))
+
+const loginReply = resolveLocalAiReply('Apakah saya harus buat akun login sebelum pesan?', MEDIA_ACCOUNTS, CATALOG_PACKAGES, TRANSACTION_FAQ_ITEMS)
+assert.equal(loginReply.suggestAdminHandoff, true, 'Kata umum akun login tidak boleh membuang daftar 12 akun media')
+
+const customUnknownReply = resolveLocalAiReply('Bisa barter sponsor acara komunitas offline?', MEDIA_ACCOUNTS, CATALOG_PACKAGES, TRANSACTION_FAQ_ITEMS)
+assert.equal(customUnknownReply.suggestAdminHandoff, true, 'Pertanyaan di luar katalog wajib menyarankan handoff ke Admin')
+
+const prefillText = buildDraftInquiryPrefill(driftedDraft)
+assert.ok(prefillText.includes(driftedDraft.sourceName) && prefillText.includes('akun'))
+
+const sectionEyebrowFiles = [
+  'app/components/sections/CatalogSection.vue',
+  'app/components/sections/MediaNetworkSection.vue',
+  'app/components/sections/FaqSection.vue',
+]
+for (const sectionFile of sectionEyebrowFiles) {
+  const src = readFileSync(resolve(sectionFile), 'utf8')
+  assert.equal(/\b0[1-4]\s*\//.test(src), false, `${sectionFile} tidak boleh memakai penomoran section 0X /`)
+}
+
+const widgetSrc = readFileSync(resolve('app/components/ui/FloatingAssistantWidget.vue'), 'utf8')
+assert.ok(widgetSrc.includes('role="log"') && widgetSrc.includes('aria-live="polite"'), 'Log chat AI wajib memiliki role=log & aria-live=polite')
+assert.ok(widgetSrc.includes('max-h-[72dvh]'), 'Panel widget mengambang wajib memakai 72dvh untuk keyboard mobile')
+
+const faqIds = new Set(TRANSACTION_FAQ_ITEMS.map((item) => item.id))
+assert.equal(faqIds.size, TRANSACTION_FAQ_ITEMS.length, 'ID item FAQ wajib unik')
+assert.ok(TRANSACTION_FAQ_ITEMS.length >= 6, 'Section FAQ minimal 6 pertanyaan')
+
+const EXPECTED_FOOTER_TARGETS = new Set(['#hero', '#katalog', '#media-network', '#faq'])
+assert.equal(FOOTER_NAVIGATION.length, EXPECTED_FOOTER_TARGETS.size)
+for (const navItem of FOOTER_NAVIGATION) {
+  assert.ok(EXPECTED_FOOTER_TARGETS.has(navItem.target), `Target footer tidak valid: ${navItem.target}`)
+}
+console.log('[PASS] Widget mengambang AI/Admin, disambiguasi 01L, eyebrow tanpa nomor, FAQ & Footer terverifikasi.')
 
 // 7. Verifikasi Batas Modularitas (< 400 baris) & Kebersihan Copy Produksi di app/
 function collectCodeFiles(dirPath) {

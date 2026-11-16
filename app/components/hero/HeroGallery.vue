@@ -27,7 +27,7 @@ const photos = [
     <figure
       v-for="photo in photos"
       :key="photo.src"
-      class="photo absolute z-[3] m-0 w-[165px] max-[700px]:w-[105px]"
+      class="photo absolute z-[3] m-0 w-[165px] max-[1120px]:z-[1] max-[1120px]:w-[132px] max-[700px]:w-[105px]"
       :class="photo.className"
     >
       <img

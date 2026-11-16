@@ -145,10 +145,30 @@ function formatMediaTypeTag(mediaType: MediaRecentPost['mediaType']): string {
     </div>
     <div
       v-else-if="!isInline"
-      class="flex items-center justify-between border-b border-[#292929] py-3 text-[10px] tracking-[1.2px] text-[#a3a3a3] uppercase"
+      class="border-b border-[#292929] py-4"
     >
-      <span>KANAL RESMI HALLOPEDIA</span>
-      <span class="text-[#ccc]">AKUN AKTIF TERVERIFIKASI</span>
+      <div class="mb-2.5 flex items-center justify-between text-[9px] tracking-[1.4px] text-[#a3a3a3] uppercase">
+        <span>RINCIAN TARIF PER MODE TAYANG</span>
+        <span class="text-[#ed3541]">TERVERIFIKASI</span>
+      </div>
+      <div class="grid grid-cols-2 gap-2.5 text-[11px]">
+        <div class="border border-[#292929] bg-[#0b0b0b] px-3 py-2">
+          <div class="text-[9px] tracking-[1px] text-[#a3a3a3] uppercase">1 AKUN SATUAN</div>
+          <div class="mt-0.5 font-bold text-white tabular-nums">{{ formatIdr(account.pricing.directSinglePriceIdr) }}</div>
+        </div>
+        <div class="border border-[#292929] bg-[#0b0b0b] px-3 py-2">
+          <div class="text-[9px] tracking-[1px] text-[#a3a3a3] uppercase">COLLAB ADD-ON</div>
+          <div class="mt-0.5 font-bold text-white tabular-nums">+{{ formatIdr(account.pricing.collabAddOnPriceIdr) }}</div>
+        </div>
+        <div class="border border-[#292929] bg-[#0b0b0b] px-3 py-2">
+          <div class="text-[9px] tracking-[1px] text-[#a3a3a3] uppercase">POST TERPISAH</div>
+          <div class="mt-0.5 font-bold text-white tabular-nums">{{ formatIdr(account.pricing.separatePostPriceIdr) }}</div>
+        </div>
+        <div class="border border-[#292929] bg-[#0b0b0b] px-3 py-2">
+          <div class="text-[9px] tracking-[1px] text-[#a3a3a3] uppercase">VISIT ADD-ON</div>
+          <div class="mt-0.5 font-bold text-white tabular-nums">+{{ formatIdr(account.pricing.visitAddOnPriceIdr) }}</div>
+        </div>
+      </div>
     </div>
 
     <!-- Conditional Recent Posts Strip (Max 3 with Graceful CDN Fallback) -->

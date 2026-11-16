@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { ref, toRef } from 'vue'
+import ConfiguratorFixedSummary from '~/components/sections/catalog/ConfiguratorFixedSummary.vue'
+import { useAssistantWidget } from '~/composables/useAssistantWidget'
 import { useModalAccessibility } from '~/composables/useModalAccessibility'
 import { SERVICE_OPTIONS, usePackageConfigurator } from '~/composables/usePackageConfigurator'
 import {
   COLLAB_MAX_ACCOUNTS,
   COLLAB_MIN_ACCOUNTS,
-  DISTRIBUTION_MODE_LABELS,
   PAYMENT_SCHEME_LABELS,
-  SERVICE_TYPE_LABELS,
   formatIdr,
   type CatalogPackage,
   type ConfiguredOrderDraft,
@@ -45,7 +45,9 @@ const {
   initialDraft: toRef(props, 'initialDraft'),
 })
 
-useModalAccessibility({
+const { openWidget } = useAssistantWidget()
+
+const { suppressNextFocusRestore } = useModalAccessibility({
   isOpen: toRef(props, 'isOpen'),
   panelRef: drawerPanelRef,
   initialFocusRef: closeButtonRef,
@@ -56,6 +58,16 @@ useModalAccessibility({
 function handleProceed() {
   const draft = buildProceedDraft()
   if (draft) emit('proceed', draft)
+}
+
+function askAssistantFromDrawer() {
+  suppressNextFocusRestore()
+  const pkgLabel = lockedSourcePackage.value?.name ?? sourceName.value
+  emit('close')
+  openWidget({
+    tab: 'AI_CHAT',
+    prefillAi: `Saya sedang memilih ${pkgLabel} (${selectedAccountIds.value.length} akun), bagaimana saran terbaik atau skema bayarnya?`,
+  })
 }
 </script>
 
@@ -79,123 +91,54 @@ function handleProceed() {
       >
         <div
           ref="drawerPanelRef"
-          data-lenis-prevent
-          class="editorial-scrollbar flex h-full w-full max-w-[580px] flex-col justify-between overflow-y-auto overscroll-contain border-l border-[#292929] bg-[#0b0b0b] p-7 text-white max-[700px]:p-5"
+          class="flex h-full w-full max-w-[580px] flex-col overflow-hidden border-l border-[#292929] bg-[#0b0b0b] text-white"
         >
-          <div>
-            <!-- Drawer Header -->
-            <div class="flex items-start justify-between gap-4 border-b border-[#292929] pb-5">
-              <div>
-                <div class="flex items-center gap-2 text-[10px] tracking-[2px] text-[#a3a3a3] uppercase">
-                  <span class="h-[6px] w-[6px] rounded-full bg-[#ed3541]" aria-hidden="true"></span>
-                  <span>{{ isFixedMode ? `PAKET HARGA TETAP · ${lockedSourcePackage?.sku ?? ''}` : 'KONFIGURATOR ESTIMASI IKLAN' }}</span>
-                </div>
-                <h3 id="configurator-title" class="mt-2 text-[22px] font-bold tracking-[-0.03em]">
-                  {{ lockedSourcePackage?.name ?? sourceName }}
-                </h3>
+          <!-- Pinned Header -->
+          <div class="flex shrink-0 items-start justify-between gap-4 border-b border-[#292929] px-7 pt-6 pb-5 max-[700px]:px-5 max-[700px]:pt-5">
+            <div>
+              <div class="flex items-center gap-2 text-[10px] tracking-[2px] text-[#a3a3a3] uppercase">
+                <span class="h-[6px] w-[6px] rounded-full bg-[#ed3541]" aria-hidden="true"></span>
+                <span>{{ isFixedMode ? `PAKET HARGA TETAP · ${lockedSourcePackage?.sku ?? ''}` : 'KONFIGURATOR ESTIMASI IKLAN' }}</span>
               </div>
-              <button
-                ref="closeButtonRef"
-                type="button"
-                class="cursor-pointer border border-[#292929] px-3 py-1.5 text-[10px] tracking-[1.5px] text-[#ccc] uppercase transition-colors hover:border-[#ed3541] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541] max-[700px]:inline-flex max-[700px]:min-h-[44px] max-[700px]:items-center"
-                aria-label="Tutup konfigurator"
-                @click="emit('close')"
-              >
-                TUTUP ✕
-              </button>
+              <h3 id="configurator-title" class="mt-2 text-[22px] font-bold tracking-[-0.03em]">
+                {{ lockedSourcePackage?.name ?? sourceName }}
+              </h3>
             </div>
+            <button
+              ref="closeButtonRef"
+              type="button"
+              class="cursor-pointer border border-[#292929] px-3 py-1.5 text-[10px] tracking-[1.5px] text-[#ccc] uppercase transition-colors hover:border-[#ed3541] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541] max-[700px]:inline-flex max-[700px]:min-h-[44px] max-[700px]:items-center"
+              aria-label="Tutup konfigurator"
+              @click="emit('close')"
+            >
+              TUTUP ✕
+            </button>
+          </div>
 
+          <!-- Scrollable Configuration Body -->
+          <div data-lenis-prevent class="editorial-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain px-7 py-6 max-[700px]:px-5">
             <!-- Validation Notice (A11y Live Region) -->
             <p
               v-if="notice"
               role="alert"
               aria-live="polite"
-              class="mt-4 border-l-2 border-[#ed3541] bg-[#171717] px-3 py-2 text-[11px] leading-[1.5] text-[#f5f5f5]"
+              class="mt-0 mb-5 border-l-2 border-[#ed3541] bg-[#171717] px-3 py-2 text-[11px] leading-[1.5] text-[#f5f5f5]"
             >
               {{ notice }}
             </p>
 
             <!-- MODE A: FIXED PACKAGE READ-ONLY LOCKED SUMMARY -->
-            <div v-if="lockedSourcePackage" class="mt-6 space-y-6">
-              <div class="border border-[#292929] bg-[#141414] p-5">
-                <div class="flex flex-wrap items-center justify-between gap-2">
-                  <span class="border border-[#ed3541] bg-[#ed3541]/15 px-2.5 py-0.5 text-[9px] font-bold tracking-[1.5px] text-[#ed3541] uppercase">
-                    PAKET HARGA TETAP
-                  </span>
-                  <span class="text-[10px] tracking-[1.2px] text-[#a3a3a3] uppercase">{{ lockedSourcePackage.regionalLabel }}</span>
-                </div>
-
-                <p class="mt-3 text-[12px] leading-[1.6] text-[#d4d4d4]">{{ lockedSourcePackage.tagline }}</p>
-
-                <div class="mt-4 grid grid-cols-2 gap-3 border-y border-[#292929] py-3.5 text-[11px]">
-                  <div>
-                    <div class="text-[9px] tracking-[1.4px] text-[#a3a3a3] uppercase">LAYANAN</div>
-                    <div class="mt-1 font-semibold text-white">{{ SERVICE_TYPE_LABELS[lockedSourcePackage.serviceType] }}</div>
-                  </div>
-                  <div>
-                    <div class="text-[9px] tracking-[1.4px] text-[#a3a3a3] uppercase">MODE TAYANG</div>
-                    <div class="mt-1 font-semibold text-white">{{ DISTRIBUTION_MODE_LABELS[lockedSourcePackage.distributionMode] }}</div>
-                  </div>
-                </div>
-
-                <!-- Locked Accounts Preview -->
-                <div class="mt-4">
-                  <div class="text-[10px] tracking-[1.5px] text-[#a3a3a3] uppercase">
-                    AKUN TERMASUK DALAM PAKET ({{ fixedIncludedAccounts.length }})
-                  </div>
-                  <div v-if="fixedIncludedAccounts.length" class="mt-2.5 flex flex-wrap gap-1.5">
-                    <div
-                      v-for="account in fixedIncludedAccounts"
-                      :key="account.id"
-                      class="inline-flex items-center gap-1.5 border border-[#292929] bg-[#0b0b0b] px-2 py-1"
-                    >
-                      <img
-                        v-if="account.logoPath"
-                        :src="account.logoPath"
-                        :alt="`Logo ${account.name}`"
-                        class="h-4 w-4 object-cover"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                      <span
-                        v-else
-                        class="flex h-4 w-4 items-center justify-center bg-[#292929] text-[8px] font-bold text-white"
-                        aria-hidden="true"
-                      >
-                        {{ account.monogram }}
-                      </span>
-                      <span class="text-[10px] font-medium text-[#e5e5e5]">{{ account.handle }}</span>
-                    </div>
-                  </div>
-                  <p v-else class="mt-2 text-[11px] text-[#ed3541]">
-                    Belum ada akun media aktif pada paket ini. Silakan beralih ke Konfigurator Custom.
-                  </p>
-                </div>
-
-                <!-- Deliverables -->
-                <ul class="mt-4 space-y-1.5 border-t border-[#292929] pt-3.5 text-[12px] text-[#ccc]">
-                  <li v-for="(item, idx) in lockedSourcePackage.deliverables" :key="idx" class="flex items-start gap-2">
-                    <span class="font-bold text-[#ed3541]" aria-hidden="true">+</span>
-                    <span>{{ item }}</span>
-                  </li>
-                </ul>
-              </div>
-
-              <!-- Switch to Custom Link -->
-              <button
-                type="button"
-                class="inline-flex cursor-pointer items-center gap-2 border-b border-white/30 pb-1 text-[11px] font-medium text-[#d4d4d4] transition-colors hover:border-[#ed3541] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ed3541] max-[700px]:min-h-[44px]"
-                @click="switchToCustomBuilder"
-              >
-                <span>Ingin memilih akun sendiri atau ubah layanan? Beralih ke Konfigurator Custom</span>
-                <span aria-hidden="true">↗</span>
-              </button>
-            </div>
+            <ConfiguratorFixedSummary
+              v-if="lockedSourcePackage"
+              :pkg="lockedSourcePackage"
+              :included-accounts="fixedIncludedAccounts"
+              @switch-to-custom="switchToCustomBuilder"
+            />
 
             <!-- MODE B: CUSTOM PER-ACCOUNT CONFIGURATOR -->
             <template v-else>
               <!-- 1. Jenis Layanan -->
-              <div class="mt-6">
+              <div>
                 <div class="text-[10px] tracking-[1.8px] text-[#a3a3a3] uppercase">1. JENIS LAYANAN</div>
                 <div class="mt-2.5 grid grid-cols-2 gap-2.5" role="group" aria-label="Pilih jenis layanan">
                   <button
@@ -345,13 +288,13 @@ function handleProceed() {
             </div>
           </div>
 
-          <!-- Drawer Summary Footer + Primary Action CTA -->
-          <div class="mt-8 border-t border-[#292929] pt-5">
+          <!-- Pinned Sticky Action Footer (Selalu terlihat di atas lipatan) -->
+          <div class="shrink-0 border-t border-[#292929] bg-[#0b0b0b] px-7 pt-4 pb-5 max-[700px]:px-5">
             <div class="flex items-baseline justify-between">
               <span class="text-[10px] tracking-[1.5px] text-[#a3a3a3] uppercase">
                 {{ isFixedMode ? 'HARGA RESMI PAKET' : 'TOTAL ESTIMASI PAKET' }}
               </span>
-              <span class="text-[24px] font-black tracking-[-0.03em] text-white">{{ formatIdr(estimatedPrice) }}</span>
+              <span class="text-[22px] font-black tracking-[-0.03em] text-white sm:text-[24px]">{{ formatIdr(estimatedPrice) }}</span>
             </div>
             <div class="mt-1 flex items-baseline justify-between text-[12px] text-[#ccc]">
               <span>
@@ -366,16 +309,27 @@ function handleProceed() {
               type="button"
               :disabled="!canProceed"
               :aria-disabled="!canProceed"
-              class="mt-5 flex w-full items-center justify-between px-5 py-4 text-[11px] font-bold tracking-[1.5px] text-white uppercase transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[700px]:min-h-[44px]"
+              class="mt-4 flex min-h-[46px] w-full items-center justify-between px-5 py-3 text-[11px] font-bold tracking-[1.5px] text-white uppercase transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               :class="canProceed ? 'cursor-pointer bg-[#ed3541] hover:bg-[#ff4754]' : 'cursor-not-allowed bg-[#333] text-[#999]'"
               @click="handleProceed"
             >
               <span>SIMPAN DRAF &amp; KONFIRMASI</span>
               <span aria-hidden="true">→</span>
             </button>
-            <p class="mt-2.5 mb-0 text-[11px] leading-[1.5] text-[#a3a3a3]">
-              Draf disimpan di sesi Anda untuk pengisian brief materi dan checkout pembayaran.
-            </p>
+
+            <div class="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+              <span class="text-[11px] text-[#a3a3a3]">
+                Draf disimpan di sesi ini.
+              </span>
+              <button
+                type="button"
+                class="inline-flex min-h-[32px] cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-[10px] font-bold tracking-[1px] text-[#ccc] uppercase underline decoration-white/30 underline-offset-4 transition-colors hover:text-[#ed3541] hover:decoration-[#ed3541] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541] max-[700px]:min-h-[44px]"
+                @click="askAssistantFromDrawer"
+              >
+                <span>BINGUNG PILIH? TANYA AI / ADMIN</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

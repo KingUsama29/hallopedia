@@ -31,6 +31,12 @@ const navDestinations = computed<readonly NavDestination[]>(() => [
     description: 'Cakupan kanal berita dan media sosial Hallopedia',
     target: '#media-network',
   },
+  {
+    number: '04',
+    label: 'FAQ Transaksi',
+    description: 'Ketentuan Penuh, DP 50%, Invoice, materi & revisi',
+    target: '#faq',
+  },
 ])
 
 const isMenuOpen = ref(false)
@@ -157,7 +163,7 @@ async function navigateToSection(target: `#${string}`) {
                   v-for="item in navDestinations"
                   :key="item.target"
                   :href="item.target"
-                  class="group flex items-start justify-between gap-4 border-b border-[#292929] py-5
+                  class="group flex items-start justify-between gap-4 border-b border-[#292929] py-3.5
                     no-underline transition-colors hover:border-[#ed3541] focus-visible:outline
                     focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ed3541]"
                   @click.prevent="navigateToSection(item.target)"

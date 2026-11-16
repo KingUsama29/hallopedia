@@ -2,15 +2,14 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import CatalogDraftBanner from '~/components/sections/catalog/CatalogDraftBanner.vue'
 import CatalogPackageCard from '~/components/sections/catalog/CatalogPackageCard.vue'
 import PackageConfiguratorDrawer from '~/components/sections/catalog/PackageConfiguratorDrawer.vue'
+import { useAssistantWidget } from '~/composables/useAssistantWidget'
 import { useCatalogData } from '~/composables/useCatalogData'
 import { useOrderDraft } from '~/composables/useOrderDraft'
 import {
-  DISTRIBUTION_MODE_LABELS,
-  PAYMENT_SCHEME_LABELS,
   REGIONAL_SCOPE_LABELS,
-  formatIdr,
   type CatalogPackage,
   type ConfiguredOrderDraft,
   type RegionalScope,
@@ -29,6 +28,7 @@ const editingDraft = ref<ConfiguredOrderDraft | null>(null)
 
 const { catalogState, accounts: activeAccounts, packages: activePackages, regionGroups, loadCatalog } = useCatalogData()
 const { orderDraft: activeOrderDraft, hydrateOrderDraft, saveOrderDraft, clearOrderDraft } = useOrderDraft()
+const { openWidget } = useAssistantWidget()
 
 let animationContext: { revert: () => void } | undefined
 
@@ -196,63 +196,34 @@ onBeforeUnmount(() => {
             Pilih <strong>Publikasi Langsung</strong> atau <strong>Kunjungan Produksi</strong>.
             Tersedia paket satuan, <strong>Collab (maks. 5 akun)</strong>, hingga <strong>Post Terpisah</strong> lintas Kalimantan.
           </p>
-          <button
-            type="button"
-            class="group inline-flex cursor-pointer items-center gap-3 border-b border-[#0b0b0b] pb-1.5 text-[11px] font-bold tracking-[1.5px] text-[#0b0b0b] uppercase transition-colors duration-300 hover:border-[#ed3541] hover:text-[#ed3541] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ed3541] max-[700px]:min-h-[44px]"
-            @click="openCustomConfigurator"
-          >
-            <span>ATUR PAKET CUSTOM ({{ activeAccounts.length }} AKUN)</span>
-            <span class="transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true">+</span>
-          </button>
+          <div class="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <button
+              type="button"
+              class="group inline-flex cursor-pointer items-center gap-3 border-b border-[#0b0b0b] pb-1.5 text-[11px] font-bold tracking-[1.5px] text-[#0b0b0b] uppercase transition-colors duration-300 hover:border-[#ed3541] hover:text-[#ed3541] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ed3541] max-[700px]:min-h-[44px]"
+              @click="openCustomConfigurator"
+            >
+              <span>ATUR PAKET CUSTOM ({{ activeAccounts.length }} AKUN)</span>
+              <span class="transition-transform duration-300 group-hover:translate-x-1" aria-hidden="true">+</span>
+            </button>
+            <button
+              type="button"
+              class="inline-flex cursor-pointer items-center gap-2 border-b border-black/25 pb-1.5 text-[11px] font-semibold tracking-[1px] text-[#525252] uppercase transition-colors hover:border-[#ed3541] hover:text-[#ed3541] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ed3541] max-[700px]:min-h-[44px]"
+              @click="openWidget({ tab: 'AI_CHAT' })"
+            >
+              <span>BINGUNG PILIH? TANYA AI</span>
+              <span aria-hidden="true">→</span>
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- Active Order Draft Summary Banner -->
-      <div
+      <CatalogDraftBanner
         v-if="activeOrderDraft"
-        role="status"
-        aria-live="polite"
-        class="mt-8 flex flex-col justify-between gap-4 border border-[#ed3541] bg-[#0b0b0b] p-5 text-white sm:flex-row sm:items-center"
-      >
-        <div>
-          <div class="flex items-center gap-2 text-[10px] tracking-[1.8px] text-[#ed3541] uppercase">
-            <span class="h-[6px] w-[6px] rounded-full bg-[#ed3541]" aria-hidden="true"></span>
-            DRAF PEMESANAN TERSIMPAN
-          </div>
-          <div class="mt-1 text-[15px] font-bold">
-            {{ activeOrderDraft.sourceName }} — {{ activeOrderDraft.selectedAccountIds.length }} Akun
-            ({{ DISTRIBUTION_MODE_LABELS[activeOrderDraft.distributionMode] }})
-          </div>
-          <div class="mt-1 text-[12px] text-[#ccc]">
-            Total {{ activeOrderDraft.pricingStrategy === 'FIXED_PACKAGE' ? 'Resmi' : 'Estimasi' }}:
-            <strong class="text-white">{{ formatIdr(activeOrderDraft.totalPriceIdr) }}</strong> ·
-            Skema: <strong class="text-white">{{ PAYMENT_SCHEME_LABELS[activeOrderDraft.paymentScheme] }}</strong>
-            <span v-if="activeOrderDraft.paymentScheme !== 'INVOICE'">
-              ({{ formatIdr(activeOrderDraft.payNowIdr) }} dibayar di awal)
-            </span>
-          </div>
-          <div class="mt-1 text-[11px] text-[#a3a3a3]">
-            Tersimpan di sesi ini — siap dilanjutkan ke tahap pengisian brief &amp; checkout.
-          </div>
-        </div>
-        <div class="flex flex-wrap items-center gap-3">
-          <button
-            type="button"
-            class="cursor-pointer border border-[#ed3541] bg-[#ed3541] px-4 py-2 text-[10px] font-bold tracking-[1.4px] text-white uppercase transition-colors hover:bg-[#ff4754] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[700px]:min-h-[44px]"
-            @click="editActiveDraft"
-          >
-            UBAH KONFIGURASI
-          </button>
-          <button
-            type="button"
-            class="cursor-pointer border border-[#333] px-3 py-2 text-[10px] tracking-[1.4px] text-[#ccc] uppercase transition-colors hover:border-white hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-[700px]:min-h-[44px]"
-            aria-label="Tutup ringkasan draf pesanan"
-            @click="clearOrderDraft"
-          >
-            TUTUP ✕
-          </button>
-        </div>
-      </div>
+        :draft="activeOrderDraft"
+        @edit="editActiveDraft"
+        @clear="clearOrderDraft"
+      />
 
       <!-- Clean Single-Line Editorial Filter Bar -->
       <div data-catalog-rule class="mt-[clamp(44px,6vw,76px)] border-t border-black/15"></div>
