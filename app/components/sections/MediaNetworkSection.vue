@@ -42,7 +42,11 @@ const filteredAccounts = computed(() =>
 const activeSpotlight = computed<MediaAccount | null>(() => {
   const list = filteredAccounts.value
   if (!list.length) return null
-  return list.find((account) => account.id === spotlightAccountId.value) ?? list[0]!
+  return (
+    list.find((account) => account.id === spotlightAccountId.value) ??
+    list.find((account) => Boolean(account.logoPath || account.metrics?.followersCount != null || account.recentPosts?.length)) ??
+    list[0]!
+  )
 })
 
 const spotlightIndexLabel = computed(() => {
@@ -167,7 +171,7 @@ onBeforeUnmount(() => {
       <div data-network-reveal class="flex flex-wrap items-center justify-between gap-4">
         <div class="flex items-center gap-[10px] text-[10px] tracking-[2px] text-[#a3a3a3] uppercase">
           <span class="h-[7px] w-[7px] animate-pulse rounded-full bg-[#ed3541] motion-reduce:animate-none" aria-hidden="true"></span>
-          03 / JARINGAN MEDIA SOSIAL
+          JARINGAN MEDIA SOSIAL
         </div>
         <span v-if="catalogState.status === 'success'" class="text-[10px] tracking-[2px] text-[#a3a3a3] uppercase">
           {{ accounts.length }} AKUN MEDIA · {{ regionGroups.length }} WILAYAH
@@ -293,7 +297,8 @@ onBeforeUnmount(() => {
                       v-if="account.logoPath" :src="account.logoPath" :alt="`Logo ${account.name}`"
                       class="h-9 w-9 shrink-0 border border-[#292929] object-cover" loading="lazy" decoding="async"
                     />
-                    <span v-else class="flex h-9 w-9 shrink-0 items-center justify-center border border-[#292929] bg-[#141414] text-[10px] font-bold tracking-[0.5px] text-white" aria-hidden="true">
+                    <span v-else class="relative flex h-9 w-9 shrink-0 items-center justify-center border border-[#383838] bg-[#141414] text-[10px] font-bold tracking-[0.5px] text-white" aria-hidden="true">
+                      <span class="absolute top-0 right-0 h-[3px] w-[3px] bg-[#ed3541]"></span>
                       {{ account.monogram }}
                     </span>
 

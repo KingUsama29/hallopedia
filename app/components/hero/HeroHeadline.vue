@@ -33,7 +33,7 @@ onBeforeUnmount(() => headlineContext?.revert())
 <template>
   <section
     ref="headline"
-    class="relative z-[2] mt-[clamp(12px,2.5vh,25px)] w-full max-[700px]:mt-[50px]"
+    class="relative z-[2] mt-[clamp(12px,2.5vh,25px)] w-full max-[1120px]:z-[4] max-[700px]:mt-[50px]"
     aria-label="Cerita daerah, jangkauan lebih luas"
   >
     <h1 class="m-0 flex flex-col items-center">
