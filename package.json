@@ -9,6 +9,8 @@
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare",
     "test:catalog": "node scripts/verify-catalog-pricing.mjs",
+    "test:portal": "node scripts/verify-user-portal.mjs",
+    "test:all": "node scripts/verify-catalog-pricing.mjs && node scripts/verify-user-portal.mjs",
     "typecheck": "nuxt typecheck"
   },
   "dependencies": {
