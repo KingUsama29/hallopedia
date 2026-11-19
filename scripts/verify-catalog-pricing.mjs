@@ -613,7 +613,7 @@ function collectCodeFiles(dirPath) {
   return results
 }
 
-const FORBIDDEN_INTERNAL_JARGON = ['SIAP SINKRONISASI API', 'DUMMY DATA', 'LOREM IPSUM', 'TAHAP 2A', 'TAHAP 2B', '(MODE UI)']
+const FORBIDDEN_INTERNAL_JARGON = ['SIAP SINKRONISASI API', 'DUMMY DATA', 'LOREM IPSUM', 'TAHAP 2A', 'TAHAP 2B', '(MODE UI)', 'SIMULASI']
 const appRoot = resolve('app')
 const codeFiles = collectCodeFiles(appRoot)
 for (const filePath of codeFiles) {

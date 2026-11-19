@@ -1,11 +1,20 @@
 import { computed } from 'vue'
 import { useCustomerAuth } from '~/composables/useCustomerAuth'
 import { useOrderDraft } from '~/composables/useOrderDraft'
+import { applyOrderBriefSubmission, normalizeStoredOrderRecord } from '~/data/order-workspace'
+import {
+  applyPreviewAdminAction,
+  appendCustomerChatMessage,
+  markAdminMessagesRead,
+  type AdminPreviewAction,
+} from '~/data/order-chat-preview'
 import {
   applySimulatedMidtransPayment,
   createOrderRecordFromCheckout,
   type CheckoutOrderInput,
   type CheckoutOrderResult,
+  type OrderBriefSpec,
+  type OrderMaterialItem,
   type OrderRecord,
   type PaymentChannel,
 } from '~/data/orders'
@@ -21,32 +30,12 @@ function isValidOrderRecord(value: unknown): value is OrderRecord {
     typeof c.orderCode === 'string' &&
     typeof c.customerId === 'string' &&
     typeof c.sourceName === 'string' &&
+    (c.serviceType === 'DIRECT_POST' || c.serviceType === 'VISIT_PRODUCTION') &&
     typeof c.status === 'string' &&
     Array.isArray(c.accountsSnapshot) &&
     !!c.paymentSummary &&
     typeof c.paymentSummary === 'object'
   )
-}
-
-function ensureOrderSchedulePreference(order: OrderRecord): OrderRecord {
-  if (order.schedulePreference) return order
-  return {
-    ...order,
-    schedulePreference:
-      order.serviceType === 'VISIT_PRODUCTION'
-        ? {
-            serviceType: 'VISIT_PRODUCTION',
-            preferredDate: order.targetPublishDate ?? null,
-            preferredTimeWita: null,
-            meetingLocation: '',
-            meetingMapsUrl: null,
-          }
-        : {
-            serviceType: 'DIRECT_POST',
-            preferredDate: order.targetPublishDate ?? null,
-            preferredTimeWita: null,
-          },
-  }
 }
 
 export function useOrderPortal() {
@@ -85,7 +74,7 @@ export function useOrderPortal() {
       if (raw) {
         const parsed: unknown = JSON.parse(raw)
         if (Array.isArray(parsed)) {
-          allOrders.value = parsed.filter(isValidOrderRecord).map(ensureOrderSchedulePreference)
+          allOrders.value = parsed.filter(isValidOrderRecord).map(normalizeStoredOrderRecord)
         }
       }
     } catch {
@@ -138,22 +127,74 @@ export function useOrderPortal() {
     return result
   }
 
-  function finalizePaymentPreview(
+  function updateCustomerOrder(
     orderId: string,
-    channel: Exclude<PaymentChannel, 'INVOICE'>,
-    outcome: 'SUCCESS' | 'PENDING',
+    transform: (existing: OrderRecord) => OrderRecord | null,
   ): OrderRecord | null {
     hydrateOrders()
     const customerId = currentCustomer.value?.id
     const idx = allOrders.value.findIndex((o) => o.id === orderId && o.customerId === customerId)
     if (idx === -1) return null
 
-    const updated = applySimulatedMidtransPayment(allOrders.value[idx]!, channel, outcome)
+    const current = allOrders.value[idx]!
+    const nextOrder = transform(current)
+    if (!nextOrder || nextOrder === current) return current
+
     const nextList = [...allOrders.value]
-    nextList[idx] = updated
+    nextList[idx] = nextOrder
     allOrders.value = nextList
     persistOrders()
-    return updated
+    return nextOrder
+  }
+
+  function finalizePaymentPreview(
+    orderId: string,
+    channel: Exclude<PaymentChannel, 'INVOICE'>,
+    outcome: 'SUCCESS' | 'PENDING',
+  ): OrderRecord | null {
+    return updateCustomerOrder(orderId, (existing) =>
+      applySimulatedMidtransPayment(existing, channel, outcome),
+    )
+  }
+
+  function saveOrderBrief(
+    orderId: string,
+    payload: { brief: OrderBriefSpec; materials: readonly OrderMaterialItem[] },
+  ): { ok: true; order: OrderRecord } | { ok: false; error: string } {
+    const target = getCustomerOrderById(orderId)
+    if (!target) return { ok: false, error: 'Pesanan tidak ditemukan pada akun aktif.' }
+    const result = applyOrderBriefSubmission(target, payload)
+    if (!result.ok) return result
+    updateCustomerOrder(orderId, () => result.order)
+    return result
+  }
+
+  function sendOrderChatMessage(
+    orderId: string,
+    text: string,
+  ): { ok: true; order: OrderRecord } | { ok: false; error: string } {
+    const target = getCustomerOrderById(orderId)
+    if (!target) return { ok: false, error: 'Pesanan tidak ditemukan pada akun aktif.' }
+    const result = appendCustomerChatMessage(target, text)
+    if (!result.ok) return result
+    updateCustomerOrder(orderId, () => result.order)
+    return result
+  }
+
+  function markOrderMessagesAsRead(orderId: string): OrderRecord | null {
+    return updateCustomerOrder(orderId, (existing) => markAdminMessagesRead(existing))
+  }
+
+  function triggerPreviewAdminUpdate(
+    orderId: string,
+    action: AdminPreviewAction,
+  ): { ok: true; order: OrderRecord } | { ok: false; error: string } {
+    const target = getCustomerOrderById(orderId)
+    if (!target) return { ok: false, error: 'Pesanan tidak ditemukan pada akun aktif.' }
+    const result = applyPreviewAdminAction(target, action)
+    if (!result.ok) return result
+    updateCustomerOrder(orderId, () => result.order)
+    return result
   }
 
   return {
@@ -166,6 +207,10 @@ export function useOrderPortal() {
     commitPendingOrderWithPayment,
     submitCheckoutOrder,
     finalizePaymentPreview,
+    saveOrderBrief,
+    sendOrderChatMessage,
+    markOrderMessagesAsRead,
+    triggerPreviewAdminUpdate,
   }
 }
 

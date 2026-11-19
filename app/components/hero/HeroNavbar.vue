@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue'
+import NotificationBell from '~/components/portal/NotificationBell.vue'
 import { useCatalogData } from '~/composables/useCatalogData'
 import { useCustomerAuth } from '~/composables/useCustomerAuth'
 import { useModalAccessibility } from '~/composables/useModalAccessibility'
-import { useOrderPortal } from '~/composables/useOrderPortal'
 
 interface NavDestination {
   number: string
@@ -14,11 +14,9 @@ interface NavDestination {
 
 const { accounts } = useCatalogData()
 const { currentCustomer, isAuthHydrated, hydrateAuth } = useCustomerAuth()
-const { customerOrders, totalUnreadMessages, hydrateOrders } = useOrderPortal()
 
 onMounted(() => {
   hydrateAuth()
-  hydrateOrders()
 })
 
 const navDestinations = computed<readonly NavDestination[]>(() => [
@@ -109,19 +107,22 @@ async function navigateToPortal(path: string) {
       JARINGAN MEDIA DIGITAL
     </p>
 
-    <button
-      type="button"
-      class="cursor-pointer border-0 bg-transparent text-[11px] tracking-[1px] text-white
-        transition-colors duration-200 hover:text-[#ed3541] focus-visible:outline
-        focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ed3541]
-        max-[700px]:inline-flex max-[700px]:min-h-[44px] max-[700px]:items-center"
-      aria-label="Buka menu navigasi"
-      :aria-expanded="isMenuOpen"
-      aria-controls="hero-nav-drawer"
-      @click="isMenuOpen = true"
-    >
-      MENU <span class="ml-3" aria-hidden="true">☰</span>
-    </button>
+    <div class="flex items-center gap-3 sm:gap-4">
+      <NotificationBell v-if="isAuthHydrated && currentCustomer" />
+      <button
+        type="button"
+        class="cursor-pointer border-0 bg-transparent text-[11px] tracking-[1px] text-white
+          transition-colors duration-200 hover:text-[#ed3541] focus-visible:outline
+          focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ed3541]
+          max-[700px]:inline-flex max-[700px]:min-h-[44px] max-[700px]:items-center"
+        aria-label="Buka menu navigasi"
+        :aria-expanded="isMenuOpen"
+        aria-controls="hero-nav-drawer"
+        @click="isMenuOpen = true"
+      >
+        MENU <span class="ml-3" aria-hidden="true">☰</span>
+      </button>
+    </div>
 
     <Teleport to="body">
       <Transition
@@ -212,17 +213,15 @@ async function navigateToPortal(path: string) {
               <div class="mb-3 grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  class="flex min-h-[44px] cursor-pointer items-center justify-between border border-[#292929] bg-[#141414] px-3 py-2 text-[10px] font-bold tracking-[1.2px] text-white uppercase transition-colors hover:border-[#ed3541] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541]"
+                  class="flex min-h-[44px] cursor-pointer items-center justify-between gap-2 border border-[#292929] bg-[#141414] px-3 py-2 text-[10px] font-bold tracking-[1.2px] text-white uppercase transition-colors hover:border-[#ed3541] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541]"
                   @click="navigateToPortal('/dashboard/orders')"
                 >
-                  <span>PESANAN SAYA</span>
-                  <span v-if="customerOrders.length > 0" class="bg-[#ed3541] px-1.5 py-0.5 text-[9px] font-black text-white tabular-nums">
-                    {{ totalUnreadMessages > 0 ? totalUnreadMessages : customerOrders.length }}
-                  </span>
+                  <span class="whitespace-nowrap">PESANAN SAYA</span>
+                  <span aria-hidden="true">→</span>
                 </button>
                 <button
                   type="button"
-                  class="flex min-h-[44px] cursor-pointer items-center justify-between border border-[#292929] bg-[#141414] px-3 py-2 text-[10px] font-bold tracking-[1.2px] text-[#ccc] uppercase transition-colors hover:border-white hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541]"
+                  class="flex min-h-[44px] min-w-0 cursor-pointer items-center justify-between border border-[#292929] bg-[#141414] px-3 py-2 text-[10px] font-bold tracking-[1.2px] text-[#ccc] uppercase transition-colors hover:border-white hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541]"
                   @click="navigateToPortal(isAuthHydrated && currentCustomer ? '/dashboard/orders' : '/login')"
                 >
                   <span class="truncate">{{ isAuthHydrated && currentCustomer ? currentCustomer.brandName : 'MASUK / DAFTAR' }}</span>

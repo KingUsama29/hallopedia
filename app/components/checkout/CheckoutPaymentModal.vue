@@ -166,7 +166,7 @@ function triggerOutcome(outcome: 'SUCCESS' | 'PENDING') {
           </div>
 
           <p class="mt-4 mb-0 border-l-2 border-[#ed3541] bg-[#141414] px-3 py-2 text-[11px] leading-[1.55] text-[#ccc]">
-            Panel ini mempratinjau alur Snap Midtrans sebelum endpoint backend aktif. Anda dapat menyimulasikan konfirmasi sukses atau menunda pembayaran untuk mengetes kedua status pesanan.
+            Panel ini mempratinjau alur pembayaran Midtrans sebelum integrasi pembayaran langsung aktif. Pilih konfirmasi pembayaran berhasil atau simpan status menunggu pembayaran.
           </p>
 
           <div class="mt-5 flex flex-col gap-2.5">
@@ -175,7 +175,7 @@ function triggerOutcome(outcome: 'SUCCESS' | 'PENDING') {
               class="flex min-h-[46px] w-full cursor-pointer items-center justify-between bg-[#ed3541] px-5 py-3 text-[11px] font-bold tracking-[1.4px] text-white uppercase transition-colors hover:bg-[#ff4754] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               @click="triggerOutcome('SUCCESS')"
             >
-              <span>SIMULASIKAN PEMBAYARAN BERHASIL</span>
+              <span>KONFIRMASI PEMBAYARAN BERHASIL</span>
               <span aria-hidden="true">→</span>
             </button>
             <button

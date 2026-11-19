@@ -111,6 +111,7 @@ export interface OrderChatMessage {
   text: string
   sentAt: string
   readByCustomer: boolean
+  readByAdmin: boolean
 }
 
 export interface OrderStatusLogItem {
