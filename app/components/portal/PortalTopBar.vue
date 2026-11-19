@@ -1,15 +1,13 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import NotificationBell from '~/components/portal/NotificationBell.vue'
 import { useCustomerAuth } from '~/composables/useCustomerAuth'
-import { useOrderPortal } from '~/composables/useOrderPortal'
 
 const route = useRoute()
 const { currentCustomer, isAuthHydrated, hydrateAuth, logoutCustomer } = useCustomerAuth()
-const { customerOrders, totalUnreadMessages, hydrateOrders } = useOrderPortal()
 
 onMounted(() => {
   hydrateAuth()
-  hydrateOrders()
 })
 
 async function handleLogout() {
@@ -37,7 +35,7 @@ async function handleLogout() {
         </span>
       </div>
 
-      <nav class="flex items-center gap-3 sm:gap-5" aria-label="Navigasi portal pelanggan">
+      <nav class="flex items-center gap-2 sm:gap-5" aria-label="Navigasi portal pelanggan">
         <NuxtLink
           to="/#katalog"
           class="hidden min-h-[44px] items-center text-[11px] font-semibold tracking-[1.1px] text-[#ccc] uppercase no-underline transition-colors hover:text-[#ed3541] sm:inline-flex focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ed3541]"
@@ -48,24 +46,13 @@ async function handleLogout() {
         <template v-if="isAuthHydrated && currentCustomer">
           <NuxtLink
             to="/dashboard/orders"
-            class="inline-flex min-h-[44px] items-center gap-1.5 whitespace-nowrap text-[10px] font-bold tracking-[1.1px] uppercase no-underline transition-colors sm:gap-2 sm:text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ed3541]"
+            class="inline-flex min-h-[44px] items-center whitespace-nowrap text-[10px] font-bold tracking-[1.1px] uppercase no-underline transition-colors sm:text-[11px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ed3541]"
             :class="route.path.startsWith('/dashboard') ? 'text-[#ed3541]' : 'text-white hover:text-[#ed3541]'"
           >
-            <span>PESANAN SAYA</span>
-            <span
-              v-if="customerOrders.length > 0"
-              class="border border-[#292929] bg-[#141414] px-1.5 py-0.5 text-[10px] font-black text-white tabular-nums"
-            >
-              {{ customerOrders.length }}
-            </span>
-            <span
-              v-if="totalUnreadMessages > 0"
-              class="bg-[#ed3541] px-1.5 py-0.5 text-[10px] font-black text-white tabular-nums"
-              :aria-label="`${totalUnreadMessages} pesan admin belum dibaca`"
-            >
-              {{ totalUnreadMessages }}
-            </span>
+            PESANAN SAYA
           </NuxtLink>
+
+          <NotificationBell />
 
           <span class="hidden border-l border-[#292929] pl-4 text-[11px] text-[#a3a3a3] md:inline">
             {{ currentCustomer.brandName }}
@@ -73,7 +60,7 @@ async function handleLogout() {
 
           <button
             type="button"
-            class="min-h-[38px] shrink-0 cursor-pointer border border-[#292929] bg-[#141414] px-3 py-1.5 text-[10px] font-bold tracking-[1.2px] text-[#ccc] uppercase transition-colors hover:border-[#ed3541] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541] max-lg:min-h-[44px]"
+            class="min-h-[38px] shrink-0 cursor-pointer border border-[#292929] bg-[#141414] px-2.5 py-1.5 text-[10px] font-bold tracking-[1.2px] text-[#ccc] uppercase transition-colors hover:border-[#ed3541] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541] sm:px-3 max-lg:min-h-[44px]"
             @click="handleLogout"
           >
             KELUAR
