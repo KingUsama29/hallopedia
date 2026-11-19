@@ -215,8 +215,8 @@ export function createOrderRecordFromCheckout(
 
   const serviceDesc = `${SERVICE_TYPE_LABELS[input.draft.serviceType]} · ${DISTRIBUTION_MODE_LABELS[input.draft.distributionMode]}`
   const initialNoteText = isInvoice
-    ? `Pengajuan Invoice atas nama ${companyName} untuk ${input.draft.sourceName} (${serviceDesc}) menunggu verifikasi admin.`
-    : `Pesanan ${input.draft.sourceName} (${serviceDesc}) dibuat dengan skema ${PAYMENT_SCHEME_LABELS[pricing.effectiveScheme]}.`
+    ? `Pengajuan Invoice atas nama ${companyName} untuk ${input.draft.sourceName} — ${serviceDesc} — menunggu verifikasi admin.`
+    : `Pesanan ${input.draft.sourceName} — ${serviceDesc} — dibuat dengan skema ${PAYMENT_SCHEME_LABELS[pricing.effectiveScheme]}.`
 
   return {
     ok: true,
@@ -253,6 +253,7 @@ export function createOrderRecordFromCheckout(
           text: initialNoteText,
           sentAt: nowIso,
           readByCustomer: true,
+          readByAdmin: true,
         },
       ],
       statusLogs: [
@@ -325,6 +326,7 @@ export function applySimulatedMidtransPayment(
           text: `${note} Anda siap melanjutkan pengiriman brief & materi kampanye.`,
           sentAt: nowIso,
           readByCustomer: true,
+          readByAdmin: true,
         },
       ],
     }
@@ -382,6 +384,7 @@ export function applySimulatedMidtransPayment(
         text: `${note} Anda sudah dapat mengirim brief & materi iklan.`,
         sentAt: nowIso,
         readByCustomer: true,
+        readByAdmin: true,
       },
     ],
   }

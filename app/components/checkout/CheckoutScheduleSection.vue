@@ -1,13 +1,8 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import WitaDateTimePicker from '~/components/portal/WitaDateTimePicker.vue'
 import type { ServiceType } from '~/data/catalog'
-import {
-  QUICK_WITA_TIME_SLOTS,
-  formatIndonesianFullDateTime,
-  isScheduleDateTimeInFuture,
-} from '~/data/orders'
 
-const props = defineProps<{
+defineProps<{
   serviceType: ServiceType
   minDate: string
   targetDate: string
@@ -24,39 +19,6 @@ const emit = defineEmits<{
   'update:visitMapsUrl': [value: string]
   'update:initialNotes': [value: string]
 }>()
-
-const formattedSchedulePreview = computed(() =>
-  formatIndonesianFullDateTime(props.targetDate, props.targetTimeWita),
-)
-
-function addOneDayIso(baseIso: string): string {
-  const [y, m, d] = baseIso.split('-').map(Number)
-  if (!y || !m || !d) return baseIso
-  const next = new Date(Date.UTC(y, m - 1, d + 1))
-  return next.toISOString().slice(0, 10)
-}
-
-function selectQuickTimeSlot(slot: string) {
-  if (!props.targetDate.trim()) {
-    const safeDate = isScheduleDateTimeInFuture(props.minDate, slot)
-      ? props.minDate
-      : addOneDayIso(props.minDate)
-    emit('update:targetDate', safeDate)
-  }
-  emit('update:targetTimeWita', slot)
-}
-
-function handleDateInput(event: Event) {
-  const value = (event.target as HTMLInputElement).value
-  emit('update:targetDate', value)
-  if (!value) {
-    emit('update:targetTimeWita', '')
-  }
-}
-
-function handleTimeInput(event: Event) {
-  emit('update:targetTimeWita', (event.target as HTMLInputElement).value)
-}
 </script>
 
 <template>
@@ -75,69 +37,18 @@ function handleTimeInput(event: Event) {
       </p>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2">
-      <div>
-        <label for="checkout-date" class="mb-1.5 block text-[10px] font-bold tracking-[1.3px] text-[#525252] uppercase">
-          TANGGAL TARGET {{ serviceType === 'VISIT_PRODUCTION' ? 'PERTEMUAN VISIT' : 'POSTING' }}
-        </label>
-        <input
-          id="checkout-date"
-          :value="targetDate"
-          type="date"
-          :min="minDate"
-          class="min-h-[46px] w-full border border-black/20 bg-white px-3.5 text-[13px] text-[#0b0b0b] focus:border-[#ed3541] focus:outline-none max-[700px]:text-[16px]"
-          @input="handleDateInput"
-        />
-      </div>
-
-      <div>
-        <div class="mb-1.5 flex items-center justify-between gap-2">
-          <label for="checkout-time-wita" class="block text-[10px] font-bold tracking-[1.3px] text-[#525252] uppercase">
-            JAM {{ serviceType === 'VISIT_PRODUCTION' ? 'KETEMUAN' : 'TAYANG' }} (WITA)
-          </label>
-          <button
-            v-if="targetTimeWita"
-            type="button"
-            class="cursor-pointer border-0 bg-transparent p-0 text-[10px] font-bold tracking-[1px] text-[#ed3541] uppercase underline underline-offset-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541]"
-            @click="emit('update:targetTimeWita', '')"
-          >
-            RESET JAM
-          </button>
-        </div>
-        <input
-          id="checkout-time-wita"
-          :value="targetTimeWita"
-          type="time"
-          class="min-h-[46px] w-full border border-black/20 bg-white px-3.5 text-[13px] text-[#0b0b0b] focus:border-[#ed3541] focus:outline-none max-[700px]:text-[16px]"
-          @input="handleTimeInput"
-        />
-        <div class="mt-2 flex flex-wrap gap-1.5" role="group" aria-label="Pilih cepat slot jam WITA">
-          <button
-            v-for="slot in QUICK_WITA_TIME_SLOTS"
-            :key="slot"
-            type="button"
-            class="min-h-[32px] cursor-pointer border px-2.5 py-1 text-[10px] font-bold tracking-[0.8px] tabular-nums transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541] max-lg:min-h-[38px]"
-            :class="targetTimeWita === slot ? 'border-[#ed3541] bg-[#0b0b0b] text-white' : 'border-black/20 bg-[#f6f5f2] text-[#0b0b0b] hover:border-[#0b0b0b]'"
-            :aria-pressed="targetTimeWita === slot"
-            @click="selectQuickTimeSlot(slot)"
-          >
-            {{ slot }} WITA
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div
-      v-if="formattedSchedulePreview"
-      class="border-l-2 border-[#ed3541] bg-[#f6f5f2] px-3.5 py-2.5 text-[12px] leading-[1.5]"
-    >
-      <div class="text-[9px] font-bold tracking-[1.4px] text-[#525252] uppercase">
-        {{ serviceType === 'VISIT_PRODUCTION' ? 'JADWAL PERTEMUAN TIM PRODUKSI & KLIEN' : 'RINGKASAN JADWAL TAYANG' }}
-      </div>
-      <div class="mt-0.5 font-extrabold text-[#0b0b0b]">
-        {{ formattedSchedulePreview }}
-      </div>
-    </div>
+    <WitaDateTimePicker
+      date-id="checkout-date"
+      time-id="checkout-time-wita"
+      :date="targetDate"
+      :time-wita="targetTimeWita"
+      :min-date="minDate"
+      :date-label="`TANGGAL TARGET ${serviceType === 'VISIT_PRODUCTION' ? 'PERTEMUAN VISIT' : 'POSTING'}`"
+      :time-label="`JAM ${serviceType === 'VISIT_PRODUCTION' ? 'KETEMUAN' : 'TAYANG'} (WITA)`"
+      :preview-label="serviceType === 'VISIT_PRODUCTION' ? 'JADWAL PERTEMUAN TIM PRODUKSI & KLIEN' : 'RINGKASAN JADWAL TAYANG'"
+      @update:date="emit('update:targetDate', $event)"
+      @update:time-wita="emit('update:targetTimeWita', $event)"
+    />
 
     <div
       v-if="serviceType === 'VISIT_PRODUCTION'"
@@ -187,4 +98,3 @@ function handleTimeInput(event: Event) {
     </div>
   </div>
 </template>
-
