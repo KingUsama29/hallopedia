@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import { useCatalogData } from '~/composables/useCatalogData'
+import { useCustomerAuth } from '~/composables/useCustomerAuth'
 import { useModalAccessibility } from '~/composables/useModalAccessibility'
+import { useOrderPortal } from '~/composables/useOrderPortal'
 
 interface NavDestination {
   number: string
@@ -11,6 +13,13 @@ interface NavDestination {
 }
 
 const { accounts } = useCatalogData()
+const { currentCustomer, isAuthHydrated, hydrateAuth } = useCustomerAuth()
+const { customerOrders, totalUnreadMessages, hydrateOrders } = useOrderPortal()
+
+onMounted(() => {
+  hydrateAuth()
+  hydrateOrders()
+})
 
 const navDestinations = computed<readonly NavDestination[]>(() => [
   {
@@ -72,6 +81,13 @@ async function navigateToSection(target: `#${string}`) {
       behavior: prefersReducedMotion ? 'auto' : 'smooth',
     })
   }
+}
+
+async function navigateToPortal(path: string) {
+  suppressNextFocusRestore()
+  isMenuOpen.value = false
+  await nextTick()
+  await navigateTo(path)
 }
 </script>
 
@@ -193,6 +209,25 @@ async function navigateToSection(target: `#${string}`) {
             </div>
 
             <div class="mt-8 border-t border-[#292929] pt-5">
+              <div class="mb-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  class="flex min-h-[44px] cursor-pointer items-center justify-between border border-[#292929] bg-[#141414] px-3 py-2 text-[10px] font-bold tracking-[1.2px] text-white uppercase transition-colors hover:border-[#ed3541] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541]"
+                  @click="navigateToPortal('/dashboard/orders')"
+                >
+                  <span>PESANAN SAYA</span>
+                  <span v-if="customerOrders.length > 0" class="bg-[#ed3541] px-1.5 py-0.5 text-[9px] font-black text-white tabular-nums">
+                    {{ totalUnreadMessages > 0 ? totalUnreadMessages : customerOrders.length }}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  class="flex min-h-[44px] cursor-pointer items-center justify-between border border-[#292929] bg-[#141414] px-3 py-2 text-[10px] font-bold tracking-[1.2px] text-[#ccc] uppercase transition-colors hover:border-white hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541]"
+                  @click="navigateToPortal(isAuthHydrated && currentCustomer ? '/dashboard/orders' : '/login')"
+                >
+                  <span class="truncate">{{ isAuthHydrated && currentCustomer ? currentCustomer.brandName : 'MASUK / DAFTAR' }}</span>
+                </button>
+              </div>
               <div class="text-[10px] tracking-[1.8px] text-[#a3a3a3] uppercase">
                 LAYANAN PERIKLANAN DIGITAL
               </div>

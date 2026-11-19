@@ -51,18 +51,24 @@ function handleContinueViaAdmin() {
         </span>
       </div>
       <div class="mt-1 text-[11px] text-[#a3a3a3]">
-        Tersimpan di sesi ini — ubah konfigurasi atau konsultasikan langsung ke Admin untuk langkah pemesanan.
+        Tersimpan di sesi ini — lanjutkan ke checkout atau ubah konfigurasi kapan saja.
       </div>
     </div>
 
     <div class="flex flex-wrap items-center gap-2.5 shrink-0">
+      <NuxtLink
+        to="/checkout"
+        class="inline-flex min-h-[44px] items-center gap-2 border border-[#ed3541] bg-[#ed3541] px-4 py-2 text-[10px] font-bold tracking-[1.4px] text-white uppercase no-underline transition-colors hover:bg-[#ff4754] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+      >
+        <span>LANJUT KE CHECKOUT</span>
+        <span aria-hidden="true">→</span>
+      </NuxtLink>
       <button
         type="button"
-        class="inline-flex min-h-[44px] cursor-pointer items-center gap-2 border border-[#ed3541] bg-[#ed3541] px-4 py-2 text-[10px] font-bold tracking-[1.4px] text-white uppercase transition-colors hover:bg-[#ff4754] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+        class="inline-flex min-h-[44px] cursor-pointer items-center gap-2 border border-white/30 bg-[#141414] px-4 py-2 text-[10px] font-bold tracking-[1.4px] text-white uppercase transition-colors hover:border-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
         @click="handleContinueViaAdmin"
       >
-        <span>LANJUT / TANYA ADMIN</span>
-        <span aria-hidden="true">→</span>
+        <span>TANYA ADMIN</span>
       </button>
       <button
         type="button"
