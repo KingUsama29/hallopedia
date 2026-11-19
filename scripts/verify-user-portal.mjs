@@ -15,6 +15,19 @@ import {
   resolveCheckoutSchedulePreference,
   sanitizeGoogleDriveOrHttpsUrl,
 } from '../app/data/orders.ts'
+import {
+  applyOrderBriefSubmission,
+  buildInitialBriefDraft,
+  canSubmitOrderBrief,
+  createDriveMaterialItem,
+  createLocalFileMaterialItem,
+  normalizeStoredOrderRecord,
+} from '../app/data/order-workspace.ts'
+import {
+  appendCustomerChatMessage,
+  applyPreviewAdminAction,
+  markAdminMessagesRead,
+} from '../app/data/order-chat-preview.ts'
 
 console.log('=== Verifikasi Kontrak Checkout, Pembayaran & Portal Pelanggan (2A) ===\n')
 
@@ -375,4 +388,286 @@ if (visitWithLocation.ok) {
 }
 console.log('[PASS] Kalkulasi FULL, FIXED_PACKAGE tanpa pembulatan, rincian Visit Base Fee, jadwal WITA & lokasi Visit terverifikasi.')
 
-console.log('\nSEMUA PENGECEKAN PORTAL PELANGGAN (2A) LULUS (0 ERROR).')
+// 6. Tahap 2B: Workspace Pascatransaksi (Brief Direct vs Visit, Materi Google Drive/File, Jadwal WITA & Live Chat Admin)
+assert.equal(canSubmitOrderBrief(dpOrderRes.order), false, 'Order PENDING_PAYMENT tidak boleh langsung mengirim brief')
+const lockedBriefAttempt = applyOrderBriefSubmission(dpOrderRes.order, {
+  brief: buildInitialBriefDraft(dpOrderRes.order),
+  materials: [],
+})
+assert.equal(lockedBriefAttempt.ok, false)
+
+const paidVisitOrder = applySimulatedMidtransPayment(visitWithLocation.order, 'QRIS', 'SUCCESS')
+assert.equal(paidVisitOrder.status, 'PAID')
+assert.equal(canSubmitOrderBrief(paidVisitOrder), true)
+
+const prefilledVisitBrief = buildInitialBriefDraft(paidVisitOrder)
+assert.equal(prefilledVisitBrief.serviceType, 'VISIT_PRODUCTION')
+if (prefilledVisitBrief.serviceType === 'VISIT_PRODUCTION') {
+  assert.equal(prefilledVisitBrief.locationAddress, 'Outlet Borneo Rasa, Jl. Antasari No. 12, Samarinda')
+  assert.equal(prefilledVisitBrief.meetingMapsUrl, 'https://maps.google.com/?q=Samarinda')
+  assert.equal(prefilledVisitBrief.preferredVisitDate, '2026-12-20')
+  assert.equal(prefilledVisitBrief.preferredVisitTimeWita, '10:00')
+}
+
+const badDriveMat = createDriveMaterialItem('Materi', 'http://drive.google.com/non-https')
+assert.equal(badDriveMat.ok, false, 'Google Drive non-HTTPS wajib ditolak')
+const goodDriveMat = createDriveMaterialItem('Folder Foto Produk', 'https://drive.google.com/drive/folders/promo2026')
+const localFileMat = createLocalFileMaterialItem('brief-visual.pdf', 1_572_864)
+assert.equal(goodDriveMat.ok, true)
+assert.equal(localFileMat.ok, true)
+
+const submittedVisit = applyOrderBriefSubmission(paidVisitOrder, {
+  brief: prefilledVisitBrief,
+  materials: [
+    ...(goodDriveMat.ok ? [goodDriveMat.item] : []),
+    ...(localFileMat.ok ? [localFileMat.item] : []),
+  ],
+})
+assert.equal(submittedVisit.ok, true)
+if (submittedVisit.ok) {
+  assert.equal(submittedVisit.order.status, 'BRIEF_SUBMITTED')
+  assert.equal(submittedVisit.order.schedules.length, 5)
+  assert.equal(submittedVisit.order.materials.length, 2)
+  assert.equal(submittedVisit.order.schedules[0]?.status, 'PLANNED')
+  assert.ok(submittedVisit.order.schedules[0]?.scheduledAtLabel.includes('10.00 WITA'))
+
+  // Live Chat Admin + Centang 2 Dibaca Admin (readByAdmin) + Unread Counter + Mark Read
+  const chatCust = appendCustomerChatMessage(submittedVisit.order, 'Halo Admin, materi Drive sudah diunggah.')
+  assert.equal(chatCust.ok, true)
+  if (chatCust.ok) {
+    const lastCustMsg = chatCust.order.messages[chatCust.order.messages.length - 1]
+    assert.equal(lastCustMsg?.readByAdmin, false, 'Pesan baru pelanggan wajib berstatus centang 2 abu (belum dibaca Admin)')
+
+    const adminReadOnly = applyPreviewAdminAction(chatCust.order, {
+      type: 'MARK_CUSTOMER_MESSAGES_READ',
+    })
+    assert.equal(adminReadOnly.ok, true)
+    if (adminReadOnly.ok) {
+      const custMsgAfterRead = adminReadOnly.order.messages.find((m) => m.id === lastCustMsg?.id)
+      assert.equal(custMsgAfterRead?.readByAdmin, true, 'Setelah dibaca Admin wajib berubah menjadi centang 2 nyala')
+    }
+
+    const adminReplied = applyPreviewAdminAction(chatCust.order, {
+      type: 'REPLY_CHAT',
+      text: 'Baik Kak, jadwal Visit dan materi sudah kami terima.',
+    })
+    assert.equal(adminReplied.ok, true)
+    if (adminReplied.ok) {
+      const custMsgAfterReply = adminReplied.order.messages.find((m) => m.id === lastCustMsg?.id)
+      assert.equal(custMsgAfterReply?.readByAdmin, true, 'Balasan Admin wajib menandai pesan pelanggan sudah terbaca')
+      const unreadBefore = adminReplied.order.messages.filter((m) => m.senderRole === 'ADMIN' && !m.readByCustomer).length
+      assert.equal(unreadBefore, 1)
+      const afterRead = markAdminMessagesRead(adminReplied.order)
+      const unreadAfter = afterRead.messages.filter((m) => m.senderRole === 'ADMIN' && !m.readByCustomer).length
+      assert.equal(unreadAfter, 0)
+
+      const scheduledOrder = applyPreviewAdminAction(afterRead, {
+        type: 'CONFIRM_SCHEDULE',
+        date: '2026-12-20',
+        timeWita: '10:00',
+      })
+      assert.equal(scheduledOrder.ok, true)
+      if (scheduledOrder.ok) {
+        assert.equal(scheduledOrder.order.status, 'SCHEDULED')
+        assert.equal(scheduledOrder.order.schedules[0]?.status, 'CONFIRMED')
+
+        const badIgPublish = applyPreviewAdminAction(scheduledOrder.order, {
+          type: 'MARK_PUBLISHED',
+          instagramUrl: 'https://evil.example.com/post/123',
+        })
+        assert.equal(badIgPublish.ok, false, 'Tautan tayang non-Instagram wajib ditolak')
+
+        const publishedOrder = applyPreviewAdminAction(scheduledOrder.order, {
+          type: 'MARK_PUBLISHED',
+          instagramUrl: 'https://www.instagram.com/reel/HallopediaPromo123/',
+        })
+        assert.equal(publishedOrder.ok, true)
+        if (publishedOrder.ok) {
+          assert.equal(publishedOrder.order.status, 'PUBLISHED')
+          assert.equal(publishedOrder.order.schedules[0]?.status, 'PUBLISHED')
+          assert.equal(
+            publishedOrder.order.schedules[0]?.publishedPermalink,
+            'https://www.instagram.com/reel/HallopediaPromo123/',
+          )
+        }
+      }
+    }
+  }
+}
+
+console.log('[PASS] Workspace Pascatransaksi 2B (Brief Direct/Visit, Materi Drive/File, Live Chat Unread & Jadwal Tayang) terverifikasi.')
+
+// 7. Tahap 2B.1: Kontrak Tambahan (Direct Post, Validasi Error, Revisi Brief pada SCHEDULED, Confirm Flexible Visit & Normalisasi Hidrasi)
+const directOrderInit = createOrderRecordFromCheckout(
+  {
+    customer: mockCustomer,
+    draft: bpnDraft,
+    brandName: 'Kopi Mahakam',
+    contactWhatsapp: '081234567890',
+    paymentScheme: 'FULL',
+    invoiceCompanyName: '',
+    invoicePoNumber: '',
+    targetPublishDate: '',
+    initialNotes: '',
+  },
+  MEDIA_ACCOUNTS,
+  CATALOG_PACKAGES,
+)
+assert.equal(directOrderInit.ok, true)
+if (!directOrderInit.ok) throw new Error(directOrderInit.error)
+
+const paidDirectOrder = applySimulatedMidtransPayment(directOrderInit.order, 'VA_BCA', 'SUCCESS')
+const directDraft = buildInitialBriefDraft(paidDirectOrder)
+assert.equal(directDraft.serviceType, 'DIRECT_POST')
+
+if (directDraft.serviceType === 'DIRECT_POST') {
+  const shortCaptionRes = applyOrderBriefSubmission(paidDirectOrder, {
+    brief: { ...directDraft, caption: 'Hai' },
+    materials: [],
+  })
+  assert.equal(shortCaptionRes.ok, false, 'Caption DIRECT_POST < 5 karakter wajib ditolak')
+
+  const badCtaRes = applyOrderBriefSubmission(paidDirectOrder, {
+    brief: { ...directDraft, caption: 'Promo Grand Opening Diskon 30% Pekan Ini', ctaLink: 'http://wa.me/62812' },
+    materials: [],
+  })
+  assert.equal(badCtaRes.ok, false, 'Tautan CTA non-HTTPS wajib ditolak')
+
+  const validDirectRes = applyOrderBriefSubmission(paidDirectOrder, {
+    brief: {
+      ...directDraft,
+      caption: 'Promo Grand Opening Diskon 30% di Samarinda mulai hari ini!',
+      mentionHandles: '@hallopedia.id',
+      ctaLink: 'https://wa.me/6281234567890',
+      preferredPublishDate: '2026-12-22',
+      preferredPublishTimeWita: '16:00',
+    },
+    materials: [...(goodDriveMat.ok ? [goodDriveMat.item] : [])],
+  })
+  assert.equal(validDirectRes.ok, true)
+  if (validDirectRes.ok) {
+    assert.equal(validDirectRes.order.status, 'BRIEF_SUBMITTED')
+    assert.ok(validDirectRes.order.schedules[0]?.scheduledAtLabel.includes('16.00 WITA'))
+
+    const scheduledDirect = applyPreviewAdminAction(validDirectRes.order, {
+      type: 'CONFIRM_SCHEDULE',
+    })
+    assert.equal(scheduledDirect.ok, true)
+    if (scheduledDirect.ok && scheduledDirect.order.brief?.serviceType === 'DIRECT_POST') {
+      // Edit caption tanpa mengubah tanggal/jam -> status tetap SCHEDULED dan jadwal tetap CONFIRMED
+      const captionEditOnly = applyOrderBriefSubmission(scheduledDirect.order, {
+        brief: {
+          ...scheduledDirect.order.brief,
+          caption: 'Revisi copywriting caption promo tanpa ubah tanggal tayang.',
+        },
+        materials: scheduledDirect.order.materials,
+      })
+      assert.equal(captionEditOnly.ok, true)
+      if (captionEditOnly.ok) {
+        assert.equal(captionEditOnly.order.status, 'SCHEDULED')
+        assert.equal(captionEditOnly.order.schedules[0]?.status, 'CONFIRMED')
+
+        // Edit jam WITA -> status kembali BRIEF_SUBMITTED & jadwal menjadi PLANNED untuk konfirmasi ulang Admin
+        if (captionEditOnly.order.brief?.serviceType === 'DIRECT_POST') {
+          const rescheduledByClient = applyOrderBriefSubmission(captionEditOnly.order, {
+            brief: {
+              ...captionEditOnly.order.brief,
+              preferredPublishTimeWita: '19:00',
+            },
+            materials: captionEditOnly.order.materials,
+          })
+          assert.equal(rescheduledByClient.ok, true)
+          if (rescheduledByClient.ok) {
+            assert.equal(rescheduledByClient.order.status, 'BRIEF_SUBMITTED')
+            assert.equal(rescheduledByClient.order.schedules[0]?.status, 'PLANNED')
+          }
+        }
+      }
+    }
+  }
+}
+
+if (prefilledVisitBrief.serviceType === 'VISIT_PRODUCTION') {
+  const badPicWa = applyOrderBriefSubmission(paidVisitOrder, {
+    brief: { ...prefilledVisitBrief, picPhone: '12345' },
+    materials: [],
+  })
+  assert.equal(badPicWa.ok, false, 'Nomor WhatsApp PIC Visit invalid wajib ditolak')
+
+  const pastVisitDate = applyOrderBriefSubmission(paidVisitOrder, {
+    brief: { ...prefilledVisitBrief, preferredVisitDate: '2020-01-01', preferredVisitTimeWita: '09:00' },
+    materials: [],
+  })
+  assert.equal(pastVisitDate.ok, false, 'Tanggal pertemuan Visit di masa lalu wajib ditolak')
+}
+
+// Confirm schedule pada Visit order berjadwal fleksibel wajib menjaga meetingLocation & sinkronisasi schedulePreference
+const flexVisitCheckout = createOrderRecordFromCheckout(
+  {
+    customer: mockCustomer,
+    draft: normalizeOrderDraft(
+      {
+        sourcePackageId: vs1Pkg.id,
+        sourcePackageSku: vs1Pkg.sku,
+        sourceName: vs1Pkg.name,
+        pricingStrategy: vs1Pkg.pricingStrategy,
+        serviceType: vs1Pkg.serviceType,
+        distributionMode: vs1Pkg.distributionMode,
+        selectedAccountIds: vs1Pkg.includedAccountIds,
+        paymentScheme: 'FULL',
+        totalPriceIdr: vs1Pkg.priceIdr,
+        payNowIdr: vs1Pkg.priceIdr,
+      },
+      MEDIA_ACCOUNTS,
+      CATALOG_PACKAGES,
+    ),
+    brandName: 'Kopi Mahakam',
+    contactWhatsapp: '081234567890',
+    paymentScheme: 'FULL',
+    invoiceCompanyName: '',
+    invoicePoNumber: '',
+    targetPublishDate: '',
+    targetPublishTimeWita: '',
+    visitMeetingLocation: 'Ruko Mahakam Square Blok B2',
+    visitMeetingMapsUrl: '',
+    initialNotes: '',
+  },
+  MEDIA_ACCOUNTS,
+  CATALOG_PACKAGES,
+)
+assert.equal(flexVisitCheckout.ok, true)
+if (flexVisitCheckout.ok) {
+  const confirmedFlex = applyPreviewAdminAction(
+    applySimulatedMidtransPayment(flexVisitCheckout.order, 'QRIS', 'SUCCESS'),
+    { type: 'CONFIRM_SCHEDULE' },
+  )
+  assert.equal(confirmedFlex.ok, true)
+  if (confirmedFlex.ok) {
+    assert.equal(confirmedFlex.order.schedules[0]?.meetingLocation, 'Ruko Mahakam Square Blok B2')
+    assert.ok(confirmedFlex.order.schedulePreference.preferredDate)
+    assert.ok(
+      confirmedFlex.order.schedulePreference.preferredDate >= getLocalTodayIsoDate(),
+      'Fallback tanggal konfirmasi tidak boleh statis di masa lalu',
+    )
+    assert.equal(confirmedFlex.order.schedulePreference.preferredTimeWita, '19:00')
+  }
+}
+
+// Normalisasi hidrasi localStorage aman untuk rekaman lama/parsial
+const legacyPartialOrder = {
+  ...paidDirectOrder,
+  schedulePreference: undefined,
+  materials: undefined,
+  schedules: undefined,
+  messages: [{ id: 'm-old', senderRole: 'CUSTOMER', senderName: 'Kopi', text: 'Tes', sentAt: '2026-11-18T10:00:00Z', readByCustomer: true }],
+  statusLogs: undefined,
+}
+const normalizedLegacy = normalizeStoredOrderRecord(legacyPartialOrder)
+assert.equal(normalizedLegacy.schedulePreference.serviceType, 'DIRECT_POST')
+assert.deepEqual(normalizedLegacy.materials, [])
+assert.deepEqual(normalizedLegacy.schedules, [])
+assert.equal(normalizedLegacy.messages[0]?.readByAdmin, false)
+assert.deepEqual(normalizedLegacy.statusLogs, [])
+
+console.log('[PASS] Remediasi 2B.1 (Direct Post, Revisi Brief SCHEDULED, Flexible Visit & Normalisasi Hidrasi) terverifikasi.')
+console.log('\nSEMUA PENGECEKAN PORTAL PELANGGAN (2A + 2B + 2B.1) LULUS (0 ERROR).')
