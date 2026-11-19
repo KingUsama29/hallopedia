@@ -29,6 +29,8 @@ const editingDraft = ref<ConfiguredOrderDraft | null>(null)
 const { catalogState, accounts: activeAccounts, packages: activePackages, regionGroups, loadCatalog } = useCatalogData()
 const { orderDraft: activeOrderDraft, hydrateOrderDraft, saveOrderDraft, clearOrderDraft } = useOrderDraft()
 const { openWidget } = useAssistantWidget()
+const route = useRoute()
+const router = useRouter()
 
 let animationContext: { revert: () => void } | undefined
 
@@ -102,6 +104,14 @@ function handleOrderProceed(draft: ConfiguredOrderDraft) {
   isConfiguratorOpen.value = false
 }
 
+async function handleOrderCheckout(draft: ConfiguredOrderDraft) {
+  saveOrderDraft(draft, activeAccounts.value, activePackages.value)
+  editingDraft.value = null
+  isConfiguratorOpen.value = false
+  await nextTick()
+  await navigateTo('/checkout')
+}
+
 watch([filteredPackages, () => catalogState.value.status], async () => {
   if (!import.meta.client) return
   await nextTick()
@@ -111,6 +121,12 @@ watch([filteredPackages, () => catalogState.value.status], async () => {
 onMounted(() => {
   hydrateOrderDraft(activeAccounts.value, activePackages.value)
   const section = catalogSection.value
+  if (route.query.editDraft === '1' && activeOrderDraft.value) {
+    section?.querySelector<HTMLElement>('#catalog-section-title')?.focus({ preventScroll: true })
+    editActiveDraft()
+    const { editDraft: _removed, ...restQuery } = route.query
+    void router.replace({ query: restQuery, hash: route.hash || '#katalog' })
+  }
   if (!section || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
   gsap.registerPlugin(ScrollTrigger)
@@ -184,8 +200,9 @@ onBeforeUnmount(() => {
       <div class="mt-[clamp(32px,5vw,64px)] grid gap-10 lg:grid-cols-[1.25fr_0.75fr] lg:items-end lg:gap-16">
         <h2
           id="catalog-section-title"
+          tabindex="-1"
           data-catalog-reveal
-          class="text-[clamp(38px,5.4vw,84px)] font-extrabold leading-[0.9] tracking-[-0.055em]"
+          class="text-[clamp(38px,5.4vw,84px)] font-extrabold leading-[0.9] tracking-[-0.055em] focus:outline-none"
         >
           Paket Iklan.<br />
           <span class="text-[#ed3541]">Harga Transparan.</span>
@@ -347,6 +364,7 @@ onBeforeUnmount(() => {
       :initial-draft="editingDraft"
       @close="closeConfigurator"
       @proceed="handleOrderProceed"
+      @checkout="handleOrderCheckout"
     />
   </section>
 </template>

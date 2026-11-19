@@ -26,6 +26,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   close: []
   proceed: [draft: ConfiguredOrderDraft]
+  checkout: [draft: ConfiguredOrderDraft]
 }>()
 
 const drawerPanelRef = ref<HTMLElement | null>(null)
@@ -58,6 +59,13 @@ const { suppressNextFocusRestore } = useModalAccessibility({
 function handleProceed() {
   const draft = buildProceedDraft()
   if (draft) emit('proceed', draft)
+}
+
+function handleProceedCheckout() {
+  const draft = buildProceedDraft()
+  if (!draft) return
+  suppressNextFocusRestore()
+  emit('checkout', draft)
 }
 
 function askAssistantFromDrawer() {
@@ -298,10 +306,10 @@ function askAssistantFromDrawer() {
             </div>
             <div class="mt-1 flex items-baseline justify-between text-[12px] text-[#ccc]">
               <span>
-                {{ paymentScheme === 'DP' ? 'Bayar Awal (DP 50%)' : paymentScheme === 'FULL' ? 'Bayar Penuh Sekarang' : 'Tagihan Invoice Pascatayang' }}
+                {{ paymentScheme === 'DP' ? 'Bayar Awal (DP 50%)' : paymentScheme === 'FULL' ? 'Bayar Penuh Sekarang' : 'Tagihan Invoice Resmi' }}
               </span>
-              <span class="font-semibold text-[#ed3541]">
-                {{ paymentScheme === 'INVOICE' ? 'Sesuai Kesepakatan' : formatIdr(payNowAmount) }}
+              <span class="font-semibold text-[#ed3541] tabular-nums">
+                {{ paymentScheme === 'INVOICE' ? formatIdr(estimatedPrice) : formatIdr(payNowAmount) }}
               </span>
             </div>
 
@@ -311,16 +319,21 @@ function askAssistantFromDrawer() {
               :aria-disabled="!canProceed"
               class="mt-4 flex min-h-[46px] w-full items-center justify-between px-5 py-3 text-[11px] font-bold tracking-[1.5px] text-white uppercase transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
               :class="canProceed ? 'cursor-pointer bg-[#ed3541] hover:bg-[#ff4754]' : 'cursor-not-allowed bg-[#333] text-[#999]'"
-              @click="handleProceed"
+              @click="handleProceedCheckout"
             >
-              <span>SIMPAN DRAF &amp; KONFIRMASI</span>
+              <span>LANJUT KE CHECKOUT</span>
               <span aria-hidden="true">→</span>
             </button>
 
             <div class="mt-2.5 flex flex-wrap items-center justify-between gap-2">
-              <span class="text-[11px] text-[#a3a3a3]">
-                Draf disimpan di sesi ini.
-              </span>
+              <button
+                type="button"
+                :disabled="!canProceed"
+                class="inline-flex min-h-[32px] cursor-pointer items-center border-0 bg-transparent p-0 text-[10px] font-bold tracking-[1px] text-[#a3a3a3] uppercase underline decoration-white/25 underline-offset-4 transition-colors hover:text-white disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541] max-[700px]:min-h-[44px]"
+                @click="handleProceed"
+              >
+                SIMPAN DRAF SAJA
+              </button>
               <button
                 type="button"
                 class="inline-flex min-h-[32px] cursor-pointer items-center gap-1.5 border-0 bg-transparent p-0 text-[10px] font-bold tracking-[1px] text-[#ccc] uppercase underline decoration-white/30 underline-offset-4 transition-colors hover:text-[#ed3541] hover:decoration-[#ed3541] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541] max-[700px]:min-h-[44px]"
