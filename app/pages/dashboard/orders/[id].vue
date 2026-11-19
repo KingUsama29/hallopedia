@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref } from 'vue'
 import CheckoutPaymentModal from '~/components/checkout/CheckoutPaymentModal.vue'
+import OrderAdminChatCard from '~/components/portal/OrderAdminChatCard.vue'
 import OrderScheduleBriefCard from '~/components/portal/OrderScheduleBriefCard.vue'
+import OrderScheduleTimelineCard from '~/components/portal/OrderScheduleTimelineCard.vue'
 import PortalTopBar from '~/components/portal/PortalTopBar.vue'
 import { useCustomerAuth } from '~/composables/useCustomerAuth'
 import { useOrderPortal } from '~/composables/useOrderPortal'
@@ -17,8 +19,16 @@ const { currentCustomer, isAuthHydrated, hydrateAuth } = useCustomerAuth()
 const { isOrdersHydrated, hydrateOrders, getCustomerOrderById, finalizePaymentPreview } = useOrderPortal()
 
 const isPaymentModalOpen = ref(false)
+const chatContainerRef = ref<HTMLElement | null>(null)
+const adminChatCardRef = ref<InstanceType<typeof OrderAdminChatCard> | null>(null)
 const orderId = computed(() => String(route.params.id ?? ''))
 const order = computed(() => (orderId.value ? getCustomerOrderById(orderId.value) : null))
+
+const unreadAdminCount = computed(() =>
+  order.value
+    ? order.value.messages.filter((m) => m.senderRole === 'ADMIN' && !m.readByCustomer).length
+    : 0,
+)
 
 const canTriggerPaymentModal = computed(() => {
   if (!order.value) return false
@@ -48,6 +58,12 @@ function handlePaymentComplete(payload: {
 }) {
   finalizePaymentPreview(payload.orderId, payload.channel, payload.outcome)
   isPaymentModalOpen.value = false
+}
+
+async function openUnreadAdminChat() {
+  adminChatCardRef.value?.openChat({ focusInput: true })
+  await nextTick()
+  chatContainerRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 </script>
 
@@ -139,8 +155,29 @@ function handlePaymentComplete(payload: {
           </div>
         </div>
 
-        <!-- Grid Rincian Akun & Log + Area Workspace Pascatransaksi -->
-        <div class="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1.2fr_0.8fr] lg:items-start">
+        <!-- Pita Lompat Cepat Saat Ada Pesan Admin Belum Dibaca -->
+        <div
+          v-if="unreadAdminCount > 0"
+          role="status"
+          class="mt-6 flex flex-wrap items-center justify-between gap-3 border-l-4 border-[#ed3541] bg-[#0b0b0b] px-5 py-3.5 text-white"
+        >
+          <div class="text-[12px] leading-[1.5]">
+            <span class="mr-2 inline-block bg-[#ed3541] px-2 py-0.5 text-[9px] font-black tracking-[1.2px] uppercase tabular-nums">
+              {{ unreadAdminCount }} PESAN BARU
+            </span>
+            <span>Admin Operasional mengirim balasan atau pembaruan untuk pesanan ini.</span>
+          </div>
+          <button
+            type="button"
+            class="min-h-[40px] cursor-pointer bg-white px-4 py-2 text-[10px] font-extrabold tracking-[1.3px] text-[#0b0b0b] uppercase transition-colors hover:bg-[#ed3541] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white max-lg:min-h-[44px]"
+            @click="openUnreadAdminChat"
+          >
+            LIHAT &amp; BUKA CHAT ↓
+          </button>
+        </div>
+
+        <!-- Grid Rincian Akun, Brief/Jadwal + Live Chat Admin & Riwayat -->
+        <div class="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:items-start">
           <div class="space-y-6">
             <!-- Snapshot Akun Media -->
             <div class="border border-black/15 bg-white p-6">
@@ -191,25 +228,33 @@ function handlePaymentComplete(payload: {
               </div>
             </div>
 
-            <!-- Jadwal, Kontak Koordinasi & Kesiapan Brief/Admin -->
+            <!-- Jadwal Awal, Brief Kampanye & Lampiran Materi -->
             <OrderScheduleBriefCard :order="order" />
+
+            <!-- Jadwal Eksekusi & Penayangan Per Akun -->
+            <OrderScheduleTimelineCard :order="order" />
           </div>
 
-          <!-- Riwayat Status Order -->
-          <div class="border border-black/15 bg-white p-6">
-            <h2 class="mt-0 mb-4 border-b border-black/10 pb-3 text-[12px] font-bold tracking-[1.5px] uppercase">
-              RIWAYAT STATUS PESANAN
-            </h2>
-            <div class="space-y-3">
-              <div
-                v-for="log in order.statusLogs"
-                :key="log.id"
-                class="border-l-2 border-[#ed3541] pl-3 text-[12px]"
-              >
-                <div class="text-[10px] font-bold tracking-[1.2px] text-[#525252] uppercase">
-                  {{ ORDER_STATUS_LABELS[log.status] }} · {{ formatShortDateTime(log.createdAt) }}
+          <div ref="chatContainerRef" class="space-y-6 lg:sticky lg:top-8">
+            <!-- Live Chat Admin Terikat Pesanan -->
+            <OrderAdminChatCard ref="adminChatCardRef" :order="order" />
+
+            <!-- Riwayat Status Order -->
+            <div class="border border-black/15 bg-white p-6">
+              <h2 class="mt-0 mb-4 border-b border-black/10 pb-3 text-[12px] font-bold tracking-[1.5px] uppercase">
+                RIWAYAT STATUS PESANAN
+              </h2>
+              <div class="space-y-3">
+                <div
+                  v-for="log in order.statusLogs"
+                  :key="log.id"
+                  class="border-l-2 border-[#ed3541] pl-3 text-[12px]"
+                >
+                  <div class="text-[10px] font-bold tracking-[1.2px] text-[#525252] uppercase">
+                    {{ ORDER_STATUS_LABELS[log.status] }} · {{ formatShortDateTime(log.createdAt) }}
+                  </div>
+                  <p class="mt-1 mb-0 leading-[1.5] text-[#0b0b0b]">{{ log.note }}</p>
                 </div>
-                <p class="mt-1 mb-0 leading-[1.5] text-[#0b0b0b]">{{ log.note }}</p>
               </div>
             </div>
           </div>

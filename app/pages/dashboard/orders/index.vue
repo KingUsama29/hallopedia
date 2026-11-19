@@ -13,6 +13,10 @@ definePageMeta({
 const { currentCustomer, isAuthHydrated, hydrateAuth } = useCustomerAuth()
 const { customerOrders, isOrdersHydrated, hydrateOrders } = useOrderPortal()
 
+function countUnreadAdmin(order: { messages: readonly { senderRole: string; readByCustomer: boolean }[] }): number {
+  return order.messages.filter((m) => m.senderRole === 'ADMIN' && !m.readByCustomer).length
+}
+
 onMounted(async () => {
   hydrateAuth()
   hydrateOrders()
@@ -82,6 +86,12 @@ onMounted(async () => {
                 :class="order.status === 'PENDING_PAYMENT' || order.status === 'WAITING_INVOICE_APPROVAL' ? 'border-[#ed3541] text-[#ed3541]' : 'border-black/20 bg-[#f6f5f2] text-[#0b0b0b]'"
               >
                 {{ ORDER_STATUS_LABELS[order.status] }}
+              </span>
+              <span
+                v-if="countUnreadAdmin(order) > 0"
+                class="bg-[#ed3541] px-2.5 py-1 text-white tabular-nums"
+              >
+                {{ countUnreadAdmin(order) }} PESAN BARU
               </span>
               <span class="text-[#525252]">{{ formatShortDateTime(order.createdAt) }}</span>
             </div>
