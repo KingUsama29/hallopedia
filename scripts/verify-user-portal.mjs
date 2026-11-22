@@ -1,5 +1,16 @@
 import assert from 'node:assert/strict'
+import { existsSync, readFileSync, statSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { CATALOG_PACKAGES, MEDIA_ACCOUNTS, normalizeOrderDraft } from '../app/data/catalog.ts'
+import {
+  applyOrderCancellation,
+  applyPreviewInvoiceAction,
+  buildOrderPaymentMilestones,
+  canCancelOrder,
+  computeDashboardMetrics,
+  filterAndSearchOrders,
+  resolveOrderCardAction,
+} from '../app/data/order-dashboard.ts'
 import {
   ORDER_STATUS_LABELS,
   applySimulatedMidtransPayment,
@@ -670,4 +681,174 @@ assert.equal(normalizedLegacy.messages[0]?.readByAdmin, false)
 assert.deepEqual(normalizedLegacy.statusLogs, [])
 
 console.log('[PASS] Remediasi 2B.1 (Direct Post, Revisi Brief SCHEDULED, Flexible Visit & Normalisasi Hidrasi) terverifikasi.')
-console.log('\nSEMUA PENGECEKAN PORTAL PELANGGAN (2A + 2B + 2B.1) LULUS (0 ERROR).')
+
+// 7. Tahap 2C: Dashboard Order Metrics/Filter, Pelunasan Sisa DP, Siklus Invoice, Batal Aman & PWA Shell
+if (vs1Order.ok) {
+  const dpPaidVisit = applySimulatedMidtransPayment(vs1Order.order, 'QRIS', 'SUCCESS')
+  assert.equal(dpPaidVisit.status, 'DP_PAID')
+  assert.ok(dpPaidVisit.paymentSummary.remainingIdr > 0)
+  assert.equal(canCancelOrder(dpPaidVisit), false, 'Order DP_PAID tidak boleh dapat dibatalkan mandiri')
+  assert.equal(applyOrderCancellation(dpPaidVisit).ok, false)
+
+  // Simulasikan brief + konfirmasi jadwal lebih dulu sebelum melunasi sisa DP
+  const dpBrief = buildInitialBriefDraft(dpPaidVisit)
+  const dpSubmitted =
+    dpBrief.serviceType === 'VISIT_PRODUCTION'
+      ? applyOrderBriefSubmission(dpPaidVisit, {
+          brief: {
+            ...dpBrief,
+            locationAddress: 'Jl. P. Antasari No. 99, Samarinda',
+            picName: 'Budi',
+            picPhone: '081234567890',
+            preferredVisitDate: '2026-12-28',
+            preferredVisitTimeWita: '13:00',
+          },
+          materials: [],
+        })
+      : { ok: false }
+  assert.equal(dpSubmitted.ok, true)
+  if (dpSubmitted.ok) {
+    const dpScheduled = applyPreviewAdminAction(dpSubmitted.order, { type: 'CONFIRM_SCHEDULE' })
+    assert.equal(dpScheduled.ok, true)
+    if (dpScheduled.ok) {
+      const settledWhileScheduled = applySimulatedMidtransPayment(dpScheduled.order, 'VA_BCA', 'SUCCESS')
+      assert.equal(settledWhileScheduled.status, 'SCHEDULED', 'Pelunasan DP saat SCHEDULED tidak boleh memundurkan status ke PAID')
+      assert.equal(settledWhileScheduled.paymentSummary.remainingIdr, 0)
+      assert.ok(settledWhileScheduled.messages[settledWhileScheduled.messages.length - 1]?.text.includes('Pelunasan sisa pembayaran DP'))
+      const milestones = buildOrderPaymentMilestones(settledWhileScheduled)
+      assert.equal(milestones.length, 2)
+      assert.equal(milestones[1]?.state, 'DONE')
+    }
+  }
+}
+
+// Siklus Invoice (Approve -> Settle) dan Batal Aman Order Pending
+const pendingCancelTarget = createOrderRecordFromCheckout(
+  {
+    customer: mockCustomer,
+    draft: bpnDraft,
+    brandName: 'Kopi Mahakam',
+    contactWhatsapp: '081234567890',
+    paymentScheme: 'FULL',
+    invoiceCompanyName: '',
+    invoicePoNumber: '',
+    targetPublishDate: '',
+    initialNotes: '',
+  },
+  MEDIA_ACCOUNTS,
+  CATALOG_PACKAGES,
+)
+assert.equal(pendingCancelTarget.ok, true)
+if (pendingCancelTarget.ok) {
+  assert.equal(canCancelOrder(pendingCancelTarget.order), true)
+  const cancelledRes = applyOrderCancellation(pendingCancelTarget.order, 'Ingin ubah pilihan akun media')
+  assert.equal(cancelledRes.ok, true)
+  if (cancelledRes.ok) {
+    assert.equal(cancelledRes.order.status, 'CANCELLED')
+    assert.equal(canCancelOrder(cancelledRes.order), false)
+    const payAfterCancel = applySimulatedMidtransPayment(cancelledRes.order, 'QRIS', 'SUCCESS')
+    assert.equal(payAfterCancel.status, 'CANCELLED', 'Pembayaran pada order CANCELLED wajib ditolak')
+    assert.equal(
+      applyPreviewAdminAction(cancelledRes.order, { type: 'CONFIRM_SCHEDULE' }).ok,
+      false,
+      'Order CANCELLED tidak boleh dapat dijadwalkan ulang oleh pratinjau admin',
+    )
+    assert.equal(
+      applyPreviewAdminAction(cancelledRes.order, {
+        type: 'MARK_PUBLISHED',
+        instagramUrl: 'https://www.instagram.com/p/C123456/',
+      }).ok,
+      false,
+      'Order CANCELLED tidak boleh ditandai tayang',
+    )
+  }
+}
+
+const invoiceTarget = createOrderRecordFromCheckout(
+  {
+    customer: mockCustomer,
+    draft: bpnDraft,
+    brandName: 'PT Borneo Energi',
+    contactWhatsapp: '081234567890',
+    paymentScheme: 'INVOICE',
+    invoiceCompanyName: 'PT Borneo Energi Kaltim',
+    invoicePoNumber: 'PO-2026-089',
+    targetPublishDate: '',
+    initialNotes: '',
+  },
+  MEDIA_ACCOUNTS,
+  CATALOG_PACKAGES,
+)
+assert.equal(invoiceTarget.ok, true)
+if (invoiceTarget.ok) {
+  assert.equal(canCancelOrder(invoiceTarget.order), true)
+  const approvedInv = applyPreviewInvoiceAction(invoiceTarget.order, 'APPROVE')
+  assert.equal(approvedInv.ok, true)
+  if (approvedInv.ok) {
+    assert.equal(approvedInv.order.status, 'INVOICE_APPROVED')
+    assert.equal(canCancelOrder(approvedInv.order), false)
+    const settledInv = applyPreviewInvoiceAction(approvedInv.order, 'SETTLE')
+    assert.equal(settledInv.ok, true)
+    if (settledInv.ok) {
+      assert.equal(settledInv.order.status, 'PAID')
+      assert.equal(settledInv.order.paymentSummary.remainingIdr, 0)
+      assert.equal(settledInv.order.paymentSummary.scheme, 'INVOICE')
+      if (settledInv.order.paymentSummary.scheme === 'INVOICE') {
+        assert.equal(settledInv.order.paymentSummary.approvalStatus, 'SETTLED')
+      }
+      const uniqueLogIds = new Set(settledInv.order.statusLogs.map((l) => l.id))
+      const uniqueMsgIds = new Set(settledInv.order.messages.map((m) => m.id))
+      assert.equal(uniqueLogIds.size, settledInv.order.statusLogs.length, 'ID statusLogs Invoice wajib unik')
+      assert.equal(uniqueMsgIds.size, settledInv.order.messages.length, 'ID messages Invoice wajib unik')
+    }
+  }
+}
+
+// Metrik, filter, search & urutan dashboard
+if (vs1Order.ok && pendingCancelTarget.ok && invoiceTarget.ok) {
+  const dpHalf = applySimulatedMidtransPayment(vs1Order.order, 'QRIS', 'SUCCESS')
+  const cancelledItem = applyOrderCancellation(pendingCancelTarget.order)
+  const sampleList = [
+    dpHalf,
+    ...(cancelledItem.ok ? [cancelledItem.order] : []),
+    invoiceTarget.order,
+  ]
+  const dashMetrics = computeDashboardMetrics(sampleList)
+  assert.equal(dashMetrics.totalOrders, 3)
+  assert.equal(dashMetrics.cancelledCount, 1)
+  assert.equal(dashMetrics.actionPaymentCount, 2, 'Order DP_PAID & WAITING_INVOICE_APPROVAL wajib masuk hitungan aksi pembayaran')
+  assert.ok(dashMetrics.outstandingPaymentIdr > 0)
+
+  const dpFiltered = filterAndSearchOrders(sampleList, {
+    tab: 'ACTION_PAYMENT',
+    query: 'Visit',
+    scheme: 'DP',
+    unreadOnly: false,
+    sortBy: 'HIGHEST_REMAINING',
+  })
+  assert.equal(dpFiltered.length, 1)
+  assert.equal(resolveOrderCardAction(dpFiltered[0]).quickPayLabel, 'LUNASI SISA DP')
+}
+
+// Verifikasi file PWA Manifest, Ikon PNG & Push-Ready sw.js + link di nuxt.config.ts
+const manifestPath = resolve('public/manifest.webmanifest')
+const swPath = resolve('public/sw.js')
+const nuxtCfgPath = resolve('nuxt.config.ts')
+assert.equal(existsSync(manifestPath), true, 'public/manifest.webmanifest wajib tersedia')
+assert.equal(existsSync(swPath), true, 'public/sw.js wajib tersedia')
+const manifestJson = JSON.parse(readFileSync(manifestPath, 'utf8'))
+assert.equal(manifestJson.display, 'standalone')
+assert.equal(manifestJson.theme_color, '#0b0b0b')
+assert.ok(Array.isArray(manifestJson.icons) && manifestJson.icons.length >= 3)
+for (const iconEntry of manifestJson.icons) {
+  const iconFilePath = resolve('public', iconEntry.src.replace(/^\//, ''))
+  assert.equal(existsSync(iconFilePath), true, `Ikon PWA ${iconEntry.src} wajib ada di public/`)
+  assert.ok(statSync(iconFilePath).size > 200, `Ikon PWA ${iconEntry.src} tidak boleh kosong`)
+}
+const swSource = readFileSync(swPath, 'utf8')
+assert.ok(swSource.includes('showNotification') && swSource.includes('/dashboard/orders'))
+const nuxtCfgSource = readFileSync(nuxtCfgPath, 'utf8')
+assert.ok(nuxtCfgSource.includes('/manifest.webmanifest') && nuxtCfgSource.includes('theme-color'))
+
+console.log('[PASS] Tahap 2C (Dashboard Metrik/Filter, Pelunasan DP, Siklus Invoice, Batal Aman & PWA Shell) terverifikasi.')
+console.log('\nSEMUA PENGECEKAN PORTAL PELANGGAN (2A + 2B + 2B.1 + 2C) LULUS (0 ERROR).')
