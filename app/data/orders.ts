@@ -270,122 +270,117 @@ export function createOrderRecordFromCheckout(
   }
 }
 
+function appendPaymentSystemMessage(
+  messages: OrderRecord['messages'],
+  text: string,
+  sentAt: string,
+): OrderRecord['messages'] {
+  return [
+    ...messages,
+    {
+      id: `msg-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+      senderRole: 'SYSTEM',
+      senderName: 'Sistem Pembayaran',
+      text,
+      sentAt,
+      readByCustomer: true,
+      readByAdmin: true,
+    },
+  ]
+}
+
 export function applySimulatedMidtransPayment(
   order: OrderRecord,
   channel: Exclude<PaymentChannel, 'INVOICE'>,
   outcome: 'SUCCESS' | 'PENDING',
 ): OrderRecord {
   const nowIso = new Date().toISOString()
-  if (order.paymentSummary.scheme === 'INVOICE') {
+  if (
+    order.status === 'CANCELLED' ||
+    order.paymentSummary.scheme === 'INVOICE' ||
+    order.paymentSummary.remainingIdr <= 0
+  ) {
     return order
   }
   const channelLabel = formatPaymentChannelLabel(channel)
 
   if (outcome === 'PENDING') {
-    const nextSummary: OrderPaymentSummary = {
-      ...order.paymentSummary,
-      lastChannel: channel,
-    }
     const pendingNote = `Instruksi pembayaran via ${channelLabel} disimpan dalam status menunggu penyelesaian.`
     return {
       ...order,
-      paymentSummary: nextSummary,
+      paymentSummary: { ...order.paymentSummary, lastChannel: channel },
       updatedAt: nowIso,
-      statusLogs: [
-        { id: `log-${Date.now()}`, status: order.status, note: pendingNote, createdAt: nowIso },
-        ...order.statusLogs,
-      ],
+      statusLogs: [{ id: `log-${Date.now()}`, status: order.status, note: pendingNote, createdAt: nowIso }, ...order.statusLogs],
     }
   }
 
   if (order.paymentSummary.scheme === 'FULL') {
-    const nextSummary: OrderPaymentSummary = {
-      scheme: 'FULL',
-      totalIdr: order.paymentSummary.totalIdr,
-      paidIdr: order.paymentSummary.totalIdr,
-      remainingIdr: 0,
-      lastChannel: channel,
-      paidAt: nowIso,
-    }
     const note = `Pembayaran penuh terkonfirmasi melalui pratinjau ${channelLabel}.`
     return {
       ...order,
       status: 'PAID',
-      paymentSummary: nextSummary,
+      paymentSummary: {
+        scheme: 'FULL',
+        totalIdr: order.paymentSummary.totalIdr,
+        paidIdr: order.paymentSummary.totalIdr,
+        remainingIdr: 0,
+        lastChannel: channel,
+        paidAt: nowIso,
+      },
       updatedAt: nowIso,
-      statusLogs: [
-        { id: `log-${Date.now()}`, status: 'PAID', note, createdAt: nowIso },
-        ...order.statusLogs,
-      ],
-      messages: [
-        ...order.messages,
-        {
-          id: `msg-${Date.now()}`,
-          senderRole: 'SYSTEM',
-          senderName: 'Sistem Pembayaran',
-          text: `${note} Anda siap melanjutkan pengiriman brief & materi kampanye.`,
-          sentAt: nowIso,
-          readByCustomer: true,
-          readByAdmin: true,
-        },
-      ],
+      statusLogs: [{ id: `log-${Date.now()}`, status: 'PAID', note, createdAt: nowIso }, ...order.statusLogs],
+      messages: appendPaymentSystemMessage(
+        order.messages,
+        `${note} Anda siap melanjutkan pengiriman brief & materi kampanye.`,
+        nowIso,
+      ),
     }
   }
 
   const payingRemaining = order.paymentSummary.paidIdr > 0 && order.paymentSummary.remainingIdr > 0
   if (payingRemaining) {
-    const nextSummary: OrderPaymentSummary = {
-      ...order.paymentSummary,
-      paidIdr: order.paymentSummary.totalIdr,
-      remainingIdr: 0,
-      lastChannel: channel,
-      settledAt: nowIso,
-    }
     const nextStatus: OrderStatus =
       order.status === 'DP_PAID' || order.status === 'PENDING_PAYMENT' ? 'PAID' : order.status
     const note = `Pelunasan sisa pembayaran DP terkonfirmasi melalui pratinjau ${channelLabel}.`
     return {
       ...order,
       status: nextStatus,
-      paymentSummary: nextSummary,
+      paymentSummary: {
+        ...order.paymentSummary,
+        paidIdr: order.paymentSummary.totalIdr,
+        remainingIdr: 0,
+        lastChannel: channel,
+        settledAt: nowIso,
+      },
       updatedAt: nowIso,
-      statusLogs: [
-        { id: `log-${Date.now()}`, status: nextStatus, note, createdAt: nowIso },
-        ...order.statusLogs,
-      ],
+      statusLogs: [{ id: `log-${Date.now()}`, status: nextStatus, note, createdAt: nowIso }, ...order.statusLogs],
+      messages: appendPaymentSystemMessage(
+        order.messages,
+        `${note} Pembayaran pesanan telah terlunasi 100%.`,
+        nowIso,
+      ),
     }
   }
 
   const dpPaid = order.paymentSummary.dpAmountIdr
   const remaining = Math.max(0, order.paymentSummary.totalIdr - dpPaid)
-  const nextSummary: OrderPaymentSummary = {
-    ...order.paymentSummary,
-    paidIdr: dpPaid,
-    remainingIdr: remaining,
-    lastChannel: channel,
-    dpPaidAt: nowIso,
-  }
   const note = `Uang muka (DP 50%) terkonfirmasi melalui pratinjau ${channelLabel}. Sisa pelunasan Rp ${remaining.toLocaleString('id-ID')}.`
   return {
     ...order,
     status: 'DP_PAID',
-    paymentSummary: nextSummary,
+    paymentSummary: {
+      ...order.paymentSummary,
+      paidIdr: dpPaid,
+      remainingIdr: remaining,
+      lastChannel: channel,
+      dpPaidAt: nowIso,
+    },
     updatedAt: nowIso,
-    statusLogs: [
-      { id: `log-${Date.now()}`, status: 'DP_PAID', note, createdAt: nowIso },
-      ...order.statusLogs,
-    ],
-    messages: [
-      ...order.messages,
-      {
-        id: `msg-${Date.now()}`,
-        senderRole: 'SYSTEM',
-        senderName: 'Sistem Pembayaran',
-        text: `${note} Anda sudah dapat mengirim brief & materi iklan.`,
-        sentAt: nowIso,
-        readByCustomer: true,
-        readByAdmin: true,
-      },
-    ],
+    statusLogs: [{ id: `log-${Date.now()}`, status: 'DP_PAID', note, createdAt: nowIso }, ...order.statusLogs],
+    messages: appendPaymentSystemMessage(
+      order.messages,
+      `${note} Anda sudah dapat mengirim brief & materi iklan.`,
+      nowIso,
+    ),
   }
 }

@@ -1,6 +1,11 @@
 import { computed } from 'vue'
 import { useCustomerAuth } from '~/composables/useCustomerAuth'
 import { useOrderDraft } from '~/composables/useOrderDraft'
+import {
+  applyOrderCancellation,
+  applyPreviewInvoiceAction,
+  type InvoicePreviewAction,
+} from '~/data/order-dashboard'
 import { applyOrderBriefSubmission, normalizeStoredOrderRecord } from '~/data/order-workspace'
 import {
   applyPreviewAdminAction,
@@ -197,6 +202,30 @@ export function useOrderPortal() {
     return result
   }
 
+  function cancelCustomerOrder(
+    orderId: string,
+    reason?: string,
+  ): { ok: true; order: OrderRecord } | { ok: false; error: string } {
+    const target = getCustomerOrderById(orderId)
+    if (!target) return { ok: false, error: 'Pesanan tidak ditemukan pada akun aktif.' }
+    const result = applyOrderCancellation(target, reason)
+    if (!result.ok) return result
+    updateCustomerOrder(orderId, () => result.order)
+    return result
+  }
+
+  function triggerPreviewInvoiceUpdate(
+    orderId: string,
+    action: InvoicePreviewAction,
+  ): { ok: true; order: OrderRecord } | { ok: false; error: string } {
+    const target = getCustomerOrderById(orderId)
+    if (!target) return { ok: false, error: 'Pesanan tidak ditemukan pada akun aktif.' }
+    const result = applyPreviewInvoiceAction(target, action)
+    if (!result.ok) return result
+    updateCustomerOrder(orderId, () => result.order)
+    return result
+  }
+
   return {
     customerOrders,
     isOrdersHydrated,
@@ -211,6 +240,8 @@ export function useOrderPortal() {
     sendOrderChatMessage,
     markOrderMessagesAsRead,
     triggerPreviewAdminUpdate,
+    cancelCustomerOrder,
+    triggerPreviewInvoiceUpdate,
   }
 }
 

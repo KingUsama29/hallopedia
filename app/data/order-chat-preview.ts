@@ -71,6 +71,12 @@ export function applyPreviewAdminAction(
   order: OrderRecord,
   action: AdminPreviewAction,
 ): { ok: true; order: OrderRecord } | { ok: false; error: string } {
+  if (order.status === 'CANCELLED') {
+    return {
+      ok: false,
+      error: 'Pesanan yang sudah dibatalkan tidak dapat diperbarui atau dijadwalkan ulang.',
+    }
+  }
   const nowIso = new Date().toISOString()
   const syncedMessages = withCustomerMessagesReadByAdmin(order.messages)
 
