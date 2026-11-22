@@ -2,6 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useId, watch } from 'vue'
 import { useCustomerAuth } from '~/composables/useCustomerAuth'
 import { useOrderPortal } from '~/composables/useOrderPortal'
+import { usePwaStatus } from '~/composables/usePwaStatus'
+import { countOrderUnreadAdmin } from '~/data/order-dashboard'
 import { formatShortDateTime } from '~/data/orders'
 
 interface UnreadOrderNotification {
@@ -17,6 +19,8 @@ const route = useRoute()
 const panelId = `notif-popover-${useId()}`
 const { hydrateAuth } = useCustomerAuth()
 const { customerOrders, totalUnreadMessages, hydrateOrders } = useOrderPortal()
+const { notificationPermission, refreshNotificationPermission, requestNotificationPermission } =
+  usePwaStatus()
 
 const isOpen = ref(false)
 const triggerRef = ref<HTMLButtonElement | null>(null)
@@ -27,14 +31,15 @@ const popoverRightPx = ref(16)
 const unreadNotifications = computed<UnreadOrderNotification[]>(() => {
   const items: UnreadOrderNotification[] = []
   for (const order of customerOrders.value) {
+    const unreadCount = countOrderUnreadAdmin(order)
+    if (unreadCount === 0) continue
     const unreadMsgs = order.messages.filter((m) => m.senderRole === 'ADMIN' && !m.readByCustomer)
-    if (unreadMsgs.length === 0) continue
     const latest = unreadMsgs[unreadMsgs.length - 1]!
     items.push({
       orderId: order.id,
       orderCode: order.orderCode,
       sourceName: order.sourceName,
-      unreadCount: unreadMsgs.length,
+      unreadCount,
       latestText: latest.text,
       latestSentAt: latest.sentAt,
     })
@@ -107,6 +112,7 @@ watch(
 onMounted(() => {
   hydrateAuth()
   hydrateOrders()
+  refreshNotificationPermission()
   window.addEventListener('keydown', handleWindowKeydown)
   window.addEventListener('resize', handleWindowResize)
 })
@@ -223,10 +229,19 @@ onBeforeUnmount(() => {
               </button>
             </div>
 
-            <footer class="border-t border-[#292929] bg-[#141414] px-4 py-2.5">
+            <footer class="divide-y divide-[#292929] border-t border-[#292929] bg-[#141414]">
+              <button
+                v-if="notificationPermission === 'default'"
+                type="button"
+                class="flex min-h-[40px] w-full cursor-pointer items-center justify-between border-0 bg-transparent px-4 py-2 text-[10px] font-bold tracking-[1.2px] text-[#ed3541] uppercase transition-colors hover:bg-[#171717] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#ed3541] max-lg:min-h-[44px]"
+                @click="requestNotificationPermission"
+              >
+                <span>AKTIFKAN NOTIFIKASI BROWSER</span>
+                <span aria-hidden="true">+</span>
+              </button>
               <button
                 type="button"
-                class="flex min-h-[38px] w-full cursor-pointer items-center justify-between border-0 bg-transparent p-0 text-[10px] font-bold tracking-[1.4px] text-white uppercase transition-colors hover:text-[#ed3541] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ed3541] max-lg:min-h-[44px]"
+                class="flex min-h-[40px] w-full cursor-pointer items-center justify-between border-0 bg-transparent px-4 py-2 text-[10px] font-bold tracking-[1.4px] text-white uppercase transition-colors hover:text-[#ed3541] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#ed3541] max-lg:min-h-[44px]"
                 @click="openAllOrders"
               >
                 <span>LIHAT SEMUA PESANAN</span>
