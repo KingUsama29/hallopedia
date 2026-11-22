@@ -62,7 +62,7 @@ onBeforeUnmount(() => {
 <template>
   <!-- Gaya B: Top Hairline Progress (2px #ed3541, GPU scaleX) -->
   <div
-    class="pointer-events-none fixed inset-x-0 top-0 z-50 h-[2px] bg-transparent"
+    class="no-print pointer-events-none fixed inset-x-0 top-0 z-50 h-[2px] bg-transparent"
     aria-hidden="true"
   >
     <div

@@ -19,7 +19,7 @@ async function handleLogout() {
 </script>
 
 <template>
-  <header class="w-full border-b border-[#292929] bg-[#0b0b0b] text-white">
+  <header class="no-print w-full border-b border-[#292929] bg-[#0b0b0b] text-white">
     <div class="mx-auto flex min-h-[72px] max-w-[1600px] flex-wrap items-center justify-between gap-x-4 gap-y-2 px-[6%] py-3 max-[700px]:px-[5%]">
       <div class="flex items-center gap-6">
         <NuxtLink

@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import CheckoutPaymentModal from '~/components/checkout/CheckoutPaymentModal.vue'
 import OrderAdminChatCard from '~/components/portal/OrderAdminChatCard.vue'
+import OrderPaymentBillingCard from '~/components/portal/OrderPaymentBillingCard.vue'
 import OrderScheduleBriefCard from '~/components/portal/OrderScheduleBriefCard.vue'
 import OrderScheduleTimelineCard from '~/components/portal/OrderScheduleTimelineCard.vue'
 import PortalTopBar from '~/components/portal/PortalTopBar.vue'
@@ -32,8 +33,16 @@ const unreadAdminCount = computed(() =>
 
 const canTriggerPaymentModal = computed(() => {
   if (!order.value) return false
+  if (order.value.status === 'CANCELLED') return false
   if (order.value.paymentSummary.scheme === 'INVOICE') return false
   return order.value.paymentSummary.remainingIdr > 0
+})
+
+const invoiceStatusLabel = computed(() => {
+  if (!order.value || order.value.paymentSummary.scheme !== 'INVOICE') return ''
+  if (order.value.paymentSummary.approvalStatus === 'SETTLED') return 'Lunas'
+  if (order.value.paymentSummary.approvalStatus === 'APPROVED') return 'Disetujui Admin'
+  return 'Menunggu Persetujuan Admin'
 })
 
 const visitBaseFeeIdr = computed(() => order.value?.visitBaseFeeIdr ?? 0)
@@ -72,7 +81,7 @@ async function openUnreadAdminChat() {
     <PortalTopBar />
 
     <section class="mx-auto max-w-[1400px] px-[6%] py-[clamp(44px,6vw,84px)] max-[700px]:px-[5%]">
-      <div class="mb-6">
+      <div class="no-print mb-6">
         <NuxtLink
           to="/dashboard/orders"
           class="inline-flex min-h-[40px] items-center gap-2 text-[11px] font-bold tracking-[1.4px] text-[#525252] uppercase no-underline hover:text-[#ed3541] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ed3541]"
@@ -103,32 +112,37 @@ async function openUnreadAdminChat() {
 
       <template v-else>
         <!-- Header Status Order -->
-        <div class="border border-black/15 bg-[#0b0b0b] p-6 text-white sm:p-8">
+        <div class="border border-black/15 bg-[#0b0b0b] p-6 text-white sm:p-8 print:border-[#0b0b0b] print:bg-white print:text-[#0b0b0b]">
           <div class="flex flex-wrap items-start justify-between gap-6">
             <div>
               <div class="flex flex-wrap items-center gap-2.5 text-[10px] font-bold tracking-[1.6px] uppercase">
-                <span class="bg-[#ed3541] px-2.5 py-1 text-white">{{ ORDER_STATUS_LABELS[order.status] }}</span>
-                <span class="text-[#a3a3a3]">DIBUAT {{ formatShortDateTime(order.createdAt) }}</span>
+                <span
+                  class="px-2.5 py-1 print:border print:border-[#0b0b0b] print:bg-white print:text-[#0b0b0b]"
+                  :class="order.status === 'CANCELLED' ? 'bg-[#292929] text-[#ccc]' : 'bg-[#ed3541] text-white'"
+                >
+                  {{ ORDER_STATUS_LABELS[order.status] }}
+                </span>
+                <span class="text-[#a3a3a3] print:text-[#525252]">DIBUAT {{ formatShortDateTime(order.createdAt) }}</span>
               </div>
-              <h1 class="mt-3 mb-1 text-[clamp(26px,3.6vw,44px)] font-black tracking-[-0.04em] text-white tabular-nums">
+              <h1 class="mt-3 mb-1 text-[clamp(26px,3.6vw,44px)] font-black tracking-[-0.04em] text-white tabular-nums print:text-[#0b0b0b]">
                 {{ order.orderCode }}
               </h1>
-              <p class="m-0 text-[13px] text-[#ccc]">
+              <p class="m-0 text-[13px] text-[#ccc] print:text-[#525252]">
                 {{ order.sourceName }} · {{ order.brandName }} · {{ SERVICE_TYPE_LABELS[order.serviceType] }}
               </p>
             </div>
 
             <div class="flex flex-col items-start gap-2 sm:items-end">
-              <div class="text-[10px] tracking-[1.5px] text-[#a3a3a3] uppercase">
+              <div class="text-[10px] tracking-[1.5px] text-[#a3a3a3] uppercase print:text-[#525252]">
                 TOTAL ({{ PAYMENT_SCHEME_LABELS[order.paymentSummary.scheme] }})
               </div>
-              <div class="text-[28px] font-black tracking-[-0.03em] text-white tabular-nums">
+              <div class="text-[28px] font-black tracking-[-0.03em] text-white tabular-nums print:text-[#0b0b0b]">
                 {{ formatIdr(order.paymentSummary.totalIdr) }}
               </div>
               <button
                 v-if="canTriggerPaymentModal"
                 type="button"
-                class="mt-1 inline-flex min-h-[44px] cursor-pointer items-center gap-2 bg-[#ed3541] px-5 py-2.5 text-[11px] font-bold tracking-[1.4px] text-white uppercase transition-colors hover:bg-[#ff4754] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                class="no-print mt-1 inline-flex min-h-[44px] cursor-pointer items-center gap-2 bg-[#ed3541] px-5 py-2.5 text-[11px] font-bold tracking-[1.4px] text-white uppercase transition-colors hover:bg-[#ff4754] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                 @click="isPaymentModalOpen = true"
               >
                 <span>{{ order.paymentSummary.paidIdr === 0 ? 'BAYAR SEKARANG' : 'LUNASI SISA TAGIHAN' }}</span>
@@ -139,19 +153,19 @@ async function openUnreadAdminChat() {
 
           <div
             v-if="order.paymentSummary.scheme === 'INVOICE'"
-            class="mt-6 border-t border-[#292929] pt-4 text-[12px] text-[#ccc]"
+            class="mt-6 border-t border-[#292929] pt-4 text-[12px] text-[#ccc] print:border-black/20 print:text-[#0b0b0b]"
           >
-            <strong class="text-[#ed3541] uppercase">INVOICE INSTANSI:</strong>
+            <strong class="text-[#ed3541] uppercase print:text-[#0b0b0b]">INVOICE INSTANSI:</strong>
             {{ order.paymentSummary.companyName }}
             <span v-if="order.paymentSummary.poNumber"> · PO/Ref: {{ order.paymentSummary.poNumber }}</span>
-            · Status: <strong class="text-white">{{ order.paymentSummary.approvalStatus === 'PENDING_REVIEW' ? 'Menunggu Persetujuan Admin' : 'Disetujui' }}</strong>
+            · Status: <strong class="text-white print:text-[#0b0b0b]">{{ invoiceStatusLabel }}</strong>
           </div>
           <div
-            v-else-if="order.paymentSummary.remainingIdr > 0 && order.paymentSummary.paidIdr > 0"
-            class="mt-6 border-t border-[#292929] pt-4 text-[12px] text-[#ccc]"
+            v-else-if="order.status !== 'CANCELLED' && order.paymentSummary.remainingIdr > 0 && order.paymentSummary.paidIdr > 0"
+            class="mt-6 border-t border-[#292929] pt-4 text-[12px] text-[#ccc] print:border-black/20 print:text-[#0b0b0b]"
           >
-            Terbayar awal: <strong class="text-white tabular-nums">{{ formatIdr(order.paymentSummary.paidIdr) }}</strong> ·
-            Sisa pelunasan sebelum tayang: <strong class="text-[#ed3541] tabular-nums">{{ formatIdr(order.paymentSummary.remainingIdr) }}</strong>
+            Terbayar awal: <strong class="text-white tabular-nums print:text-[#0b0b0b]">{{ formatIdr(order.paymentSummary.paidIdr) }}</strong> ·
+            Sisa pelunasan sebelum tayang: <strong class="text-[#ed3541] tabular-nums print:text-[#0b0b0b]">{{ formatIdr(order.paymentSummary.remainingIdr) }}</strong>
           </div>
         </div>
 
@@ -159,7 +173,7 @@ async function openUnreadAdminChat() {
         <div
           v-if="unreadAdminCount > 0"
           role="status"
-          class="mt-6 flex flex-wrap items-center justify-between gap-3 border-l-4 border-[#ed3541] bg-[#0b0b0b] px-5 py-3.5 text-white"
+          class="no-print mt-6 flex flex-wrap items-center justify-between gap-3 border-l-4 border-[#ed3541] bg-[#0b0b0b] px-5 py-3.5 text-white"
         >
           <div class="text-[12px] leading-[1.5]">
             <span class="mr-2 inline-block bg-[#ed3541] px-2 py-0.5 text-[9px] font-black tracking-[1.2px] uppercase tabular-nums">
@@ -228,6 +242,9 @@ async function openUnreadAdminChat() {
               </div>
             </div>
 
+            <!-- Rincian Pembayaran, Pelunasan DP & Bukti Tagihan -->
+            <OrderPaymentBillingCard :order="order" @open-payment="isPaymentModalOpen = true" />
+
             <!-- Jadwal Awal, Brief Kampanye & Lampiran Materi -->
             <OrderScheduleBriefCard :order="order" />
 
@@ -237,7 +254,9 @@ async function openUnreadAdminChat() {
 
           <div ref="chatContainerRef" class="space-y-6 lg:sticky lg:top-8">
             <!-- Live Chat Admin Terikat Pesanan -->
-            <OrderAdminChatCard ref="adminChatCardRef" :order="order" />
+            <div class="no-print">
+              <OrderAdminChatCard ref="adminChatCardRef" :order="order" />
+            </div>
 
             <!-- Riwayat Status Order -->
             <div class="border border-black/15 bg-white p-6">

@@ -160,7 +160,7 @@ async function handleSubmitBrief() {
         <button
           v-if="order.brief && canSubmit && !isEditing"
           type="button"
-          class="min-h-[40px] cursor-pointer border border-[#0b0b0b] bg-transparent px-3.5 py-2 text-[10px] font-bold tracking-[1.2px] text-[#0b0b0b] uppercase transition-colors hover:bg-[#0b0b0b] hover:text-white max-lg:min-h-[44px]"
+          class="no-print min-h-[40px] cursor-pointer border border-[#0b0b0b] bg-transparent px-3.5 py-2 text-[10px] font-bold tracking-[1.2px] text-[#0b0b0b] uppercase transition-colors hover:bg-[#0b0b0b] hover:text-white max-lg:min-h-[44px]"
           @click="toggleEditMode(true)"
         >
           UBAH BRIEF
@@ -205,7 +205,7 @@ async function handleSubmitBrief() {
       </div>
 
       <!-- Formulir Kirim / Edit Brief & Materi -->
-      <form v-else class="space-y-5" @submit.prevent="handleSubmitBrief">
+      <form v-else class="no-print space-y-5" @submit.prevent="handleSubmitBrief">
         <p
           v-if="briefError"
           ref="briefErrorRef"

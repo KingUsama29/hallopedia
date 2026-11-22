@@ -75,36 +75,52 @@ function safePermalink(url: string | null): string | null {
         JADWAL EKSEKUSI &amp; PUBLIKASI ({{ scheduleRows.length }} AKUN)
       </h2>
       <span class="text-[10px] font-bold tracking-[1.2px] text-[#525252] uppercase">
-        {{ order.status === 'PUBLISHED' ? 'KAMPANYE TAYANG' : order.status === 'SCHEDULED' ? 'JADWAL TERKUNCI' : 'ANTREAN JADWAL WITA' }}
+        {{
+          order.status === 'CANCELLED'
+            ? 'PESANAN DIBATALKAN'
+            : order.status === 'PUBLISHED'
+              ? 'KAMPANYE TAYANG'
+              : order.status === 'SCHEDULED'
+                ? 'JADWAL TERKUNCI'
+                : 'ANTREAN JADWAL WITA'
+        }}
       </span>
     </div>
 
     <!-- Sorotan Pertemuan Lapangan Visit Produksi -->
     <div
       v-if="visitMeetingSummary"
-      class="mb-5 border border-[#292929] bg-[#0b0b0b] p-4 text-white"
+      class="mb-5 border border-[#292929] bg-[#0b0b0b] p-4 text-white print:border-[#0b0b0b] print:bg-white print:text-[#0b0b0b]"
     >
       <div class="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold tracking-[1.4px] uppercase">
-        <span class="text-[#ed3541]">PERTEMUAN TIM PRODUKSI &amp; KLIEN</span>
-        <span class="border border-white/25 px-2 py-0.5 text-white">
-          {{ order.status === 'SCHEDULED' || order.status === 'PUBLISHED' ? 'TERKONFIRMASI' : order.brief ? 'MENUNGGU KONFIRMASI' : 'MENUNGGU BRIEF' }}
+        <span class="text-[#ed3541] print:text-[#0b0b0b]">PERTEMUAN TIM PRODUKSI &amp; KLIEN</span>
+        <span class="border border-white/25 px-2 py-0.5 text-white print:border-[#0b0b0b] print:text-[#0b0b0b]">
+          {{
+            order.status === 'CANCELLED'
+              ? 'DIBATALKAN'
+              : order.status === 'SCHEDULED' || order.status === 'PUBLISHED'
+                ? 'TERKONFIRMASI'
+                : order.brief
+                  ? 'MENUNGGU KONFIRMASI'
+                  : 'MENUNGGU BRIEF'
+          }}
         </span>
       </div>
 
-      <div class="mt-2.5 text-[15px] font-extrabold text-white">
+      <div class="mt-2.5 text-[15px] font-extrabold text-white print:text-[#0b0b0b]">
         {{ visitMeetingSummary.formatted ?? 'Jadwal pertemuan Visit belum ditentukan' }}
       </div>
-      <div class="mt-1 text-[12px] text-[#ccc]">
+      <div class="mt-1 text-[12px] text-[#ccc] print:text-[#525252]">
         {{ visitMeetingSummary.location || 'Alamat lokasi pertemuan belum dilengkapi' }}
       </div>
-      <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#a3a3a3]">
-        <span>PIC: <strong class="text-white">{{ visitMeetingSummary.picName }}</strong> ({{ visitMeetingSummary.picPhone }})</span>
+      <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#a3a3a3] print:text-[#525252]">
+        <span>PIC: <strong class="text-white print:text-[#0b0b0b]">{{ visitMeetingSummary.picName }}</strong> ({{ visitMeetingSummary.picPhone }})</span>
         <a
           v-if="visitMeetingSummary.safeMaps"
           :href="visitMeetingSummary.safeMaps"
           target="_blank"
           rel="noopener noreferrer"
-          class="font-bold text-[#ed3541] uppercase no-underline hover:underline"
+          class="no-print font-bold text-[#ed3541] uppercase no-underline hover:underline"
         >
           BUKA GOOGLE MAPS ↗
         </a>
@@ -120,21 +136,23 @@ function safePermalink(url: string | null): string | null {
       >
         <div class="min-w-0">
           <div class="font-bold text-[#0b0b0b]">{{ item.accountHandle }}</div>
-          <div class="mt-0.5 text-[11px] text-[#525252]">{{ item.scheduledAtLabel }}</div>
+          <div class="mt-0.5 text-[11px] text-[#525252]">{{ order.status === 'CANCELLED' ? 'Slot dibatalkan' : item.scheduledAtLabel }}</div>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
           <span
             class="border px-2 py-0.5 text-[9px] font-bold tracking-[1.1px] uppercase"
             :class="
-              item.status === 'PUBLISHED'
-                ? 'border-[#ed3541] bg-[#ed3541] text-white'
-                : item.status === 'CONFIRMED'
-                  ? 'border-[#0b0b0b] bg-[#0b0b0b] text-white'
-                  : 'border-black/20 bg-[#f6f5f2] text-[#525252]'
+              order.status === 'CANCELLED'
+                ? 'border-black/20 bg-black/5 text-[#525252]'
+                : item.status === 'PUBLISHED'
+                  ? 'border-[#ed3541] bg-[#ed3541] text-white'
+                  : item.status === 'CONFIRMED'
+                    ? 'border-[#0b0b0b] bg-[#0b0b0b] text-white'
+                    : 'border-black/20 bg-[#f6f5f2] text-[#525252]'
             "
           >
-            {{ statusBadgeLabel(item.status) }}
+            {{ order.status === 'CANCELLED' ? 'DIBATALKAN' : statusBadgeLabel(item.status) }}
           </span>
           <a
             v-if="safePermalink(item.publishedPermalink)"

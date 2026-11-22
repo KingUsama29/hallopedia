@@ -363,3 +363,24 @@ body::-webkit-scrollbar {
   }
 
 }
+
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #0b0b0b !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  section {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  article,
+  section > div {
+    break-inside: avoid;
+  }
+}
